@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>옷장 정리 AI 데이터 수집 스튜디오</title>
+    <!-- 브라우저에서 ZIP 파일 생성을 위한 라이브러리 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f0f2f5; color: #333; padding: 20px; text-align: center; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { font-size: 22px; color: #1a1a1a; margin-bottom: 6px; }
+        p { font-size: 14px; color: #666; margin-bottom: 15px; }
+        
+        .student-info-box { background: #e8f0fe; border: 1px solid #d2e3fc; padding: 12px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: center; gap: 10px; align-items: center; }
+        .student-info-box input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .student-info-box input#st-id { width: 70px; text-align: center; }
+        .student-info-box input#st-name { width: 100px; text-align: center; }
+
+        .tab-menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 15px; }
+        .tab-btn { padding: 8px 12px; border: none; background: #e4e6eb; color: #444; font-size: 13px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .tab-btn.active { background: #2b78e4; color: white; }
+        .tab-btn.test-tab { background: #fce8e6; color: #c5221f; }
+        .tab-btn.test-tab.active { background: #ea4335; color: white; }
+
+        .settings-box { background: #f8f9fa; border: 1px solid #e9ecef; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .settings-box input { width: 70px; padding: 4px; text-align: center; font-weight: bold; border: 1px solid #ccc; border-radius: 4px; }
+
+        .camera-box { width: 100%; max-width: 320px; aspect-ratio: 1 / 1; margin: 0 auto 15px auto; background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 3px solid #ddd; }
+        video, canvas { width: 100%; height: 100%; object-fit: cover; }
+        canvas { display: none; }
+
+        .btn { background-color: #2b78e4; color: white; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; width: 100%; max-width: 320px; margin-bottom: 10px; }
+        .btn-capture { background-color: #34a853; }
+        .btn-download { background-color: #f9ab00; color: #fff; margin-top: 15px; }
+
+        .preview-container { margin-top: 15px; text-align: left; border-top: 1px solid #eee; padding-top: 12px; }
+        .preview-title { font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #555; }
+        .thumb-grid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 130px; overflow-y: auto; }
+        .thumb-item { position: relative; width: 55px; height: 55px; border-radius: 6px; overflow: hidden; border: 1px solid #ccc; }
+        .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .counter-badge { display: inline-block; background: #e74c3c; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 옷장 정리 AI 데이터 수집기</h1>
+        <p>먼저 본인의 번호와 이름을 입력하고 촬영을 시작하세요!</p>
+
+        <div class="student-info-box">
+            <div>
+                <label for="st-id" style="font-size:12px; font-weight:bold;">번호:</label>
+                <input type="number" id="st-id" placeholder="예: 1" min="1" max="99">
+            </div>
+            <div>
+                <label for="st-name" style="font-size:12px; font-weight:bold;">이름:</label>
+                <input type="text" id="st-name" placeholder="예: 김민수">
+            </div>
+        </div>
+
+        <div class="settings-box">
+            <label for="start-num">📁 파일명 시작 번호:</label>
+            <input type="number" id="start-num" value="300" min="1" onchange="updateStartNum()">
+            <span style="color:#666; font-size:11px;">(예: 상의_01300.jpg)</span>
+        </div>
+
+        <div class="tab-menu">
+            <button class="tab-btn active" onclick="switchTab('상의')">상의 <span id="cnt-상의" class="counter-badge">0</span></button>
+            <button class="tab-btn" onclick="switchTab('하의')">하의 <span id="cnt-하의" class="counter-badge">0</span></button>
+            <button class="tab-btn" onclick="switchTab('양말')">양말 <span id="cnt-양말" class="counter-badge">0</span></button>
+            <button class="tab-btn test-tab" onclick="switchTab('테스트용')">🔍 테스트용 <span id="cnt-테스트용" class="counter-badge">0</span></button>
+        </div>
+
+        <div class="camera-box">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+        </div>
+
+        <button class="btn btn-capture" onclick="capturePhoto()">📷 사진 촬영하기</button>
+
+        <div class="preview-container">
+            <div class="preview-title">현재 카테고리 수집 목록</div>
+            <div class="thumb-grid" id="thumb-grid">
+                <span style="font-size: 12px; color: #999;">아직 촬영된 사진이 없습니다.</span>
+            </div>
+        </div>
+
+        <button class="btn btn-download" onclick="downloadZip()">📦 내 사진 ZIP(알집)으로 다운로드</button>
+    </div>
+
+    <script>
+        let currentCategory = '상의';
+        let startNumber = 300;
+        let capturedData = { '상의': [], '하의': [], '양말': [], '테스트용': [] };
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 640 } }
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.log("카메라 접속 대기 중");
+            }
+        }
+        initCamera();
+
+        function updateStartNum() {
+            const val = parseInt(document.getElementById('start-num').value);
+            if (!isNaN(val) && val >= 1) {
+                startNumber = val;
+                renderThumbnails();
+            }
+        }
+
+        function switchTab(category) {
+            currentCategory = category;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.innerText.includes(category)) btn.classList.add('active');
+            });
+            renderThumbnails();
+        }
+
+        function capturePhoto() {
+            const studentId = document.getElementById('st-id').value.trim();
+            const studentName = document.getElementById('st-name').value.trim();
+
+            if (!studentId || !studentName) {
+                alert("⚠️ 사진을 찍기 전에 상단의 [번호]와 [이름]을 먼저 입력해 주세요!");
+                document.getElementById('st-id').focus();
+                return;
+            }
+
+            canvas.width = 400;
+            canvas.height = 400;
+            const minDim = Math.min(video.videoWidth || 400, video.videoHeight || 400);
+            const startX = ((video.videoWidth || 400) - minDim) / 2;
+            const startY = ((video.videoHeight || 400) - minDim) / 2;
+
+            if (video.videoWidth) {
+                context.drawImage(video, startX, startY, minDim, minDim, 0, 0, 400, 400);
+            } else {
+                context.fillStyle = "#" + Math.floor(Math.random()*16777215).toString(16);
+                context.fillRect(0, 0, 400, 400);
+            }
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            capturedData[currentCategory].push(dataUrl);
+            updateCounters();
+            renderThumbnails();
+        }
+
+        function updateCounters() {
+            document.getElementById('cnt-상의').innerText = capturedData['상의'].length;
+            document.getElementById('cnt-하의').innerText = capturedData['하의'].length;
+            document.getElementById('cnt-양말').innerText = capturedData['양말'].length;
+            document.getElementById('cnt-테스트용').innerText = capturedData['테스트용'].length;
+        }
+
+        function renderThumbnails() {
+            const grid = document.getElementById('thumb-grid');
+            const list = capturedData[currentCategory];
+            const rawId = document.getElementById('st-id').value.trim() || "0";
+            const paddedId = String(rawId).padStart(2, '0');
+
+            if (list.length === 0) {
+                grid.innerHTML = `<span style="font-size: 12px; color: #999;">이 카테고리에 촬영된 사진이 없습니다.</span>`;
+                return;
+            }
+
+            let html = '';
+            list.forEach((url, idx) => {
+                const currentIdx = startNumber + idx;
+                const numStr = String(currentIdx).padStart(3, '0');
+                const filename = `${currentCategory}_${paddedId}${numStr}.jpg`;
+                html += `<div class="thumb-item"><img src="${url}" title="${filename}"></div>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        async function downloadZip() {
+            const rawId = document.getElementById('st-id').value.trim();
+            const studentName = document.getElementById('st-name').value.trim();
+
+            if (!rawId || !studentName) {
+                alert("다운로드하기 전에 상단에 번호와 이름을 입력해 주세요!");
+                return;
+            }
+
+            const totalCount = Object.values(capturedData).reduce((acc, cur) => acc + cur.length, 0);
+            if (totalCount === 0) {
+                alert("다운로드할 사진이 없습니다. 먼저 사진을 촬영해주세요!");
+                return;
+            }
+
+            const paddedId = String(rawId).padStart(2, '0');
+            const zip = new JSZip();
+
+            for (const [category, list] of Object.entries(capturedData)) {
+                if (list.length > 0) {
+                    const folder = zip.folder(category);
+                    list.forEach((url, idx) => {
+                        const currentIdx = startNumber + idx;
+                        const numStr = String(currentIdx).padStart(3, '0');
+                        const filename = `${category}_${paddedId}${numStr}.jpg`;
+                        const base64Data = url.replace(/^data:image\/jpeg;base64,/, "");
+                        folder.file(filename, base64Data, { base64: true });
+                    });
+                }
+            }
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            link.download = `closet_${paddedId}_${studentName}.zip`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
