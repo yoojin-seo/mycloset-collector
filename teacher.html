@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>교사용 · 학습지 결과 모으기 | AI 옷장 탐정</title>
+<style>
+:root{--bg:#FBF5E6;--y:#F2C14E;--y2:#FCE9B2;--y3:#FFF8E1;--b:#6B4423;--b2:#9A6B42;--ink:#3B2A1C;--muted:#8B7762;--line:#EADCBC}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
+.wrap{max-width:900px;margin:auto}
+.top{background:var(--y);color:var(--b);padding:18px 20px;border-radius:12px}
+.top h1{margin:0;font-size:21px}.top p{margin:4px 0 0;font-size:14px}
+.tabs{display:flex;gap:6px;margin-top:12px}.tabs a{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--b);text-decoration:none;font-weight:700;font-size:13px}.tabs a.on{background:var(--b);color:#fff;border-color:var(--b)}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin:12px 0}
+h2{font-size:18px;margin:0 0 6px;color:var(--b)}
+.hint,.small{color:var(--muted);font-size:13px}
+.drop{border:2px dashed var(--b2);border-radius:10px;padding:26px;text-align:center;background:var(--y3);cursor:pointer;margin-top:10px}
+.drop.over{background:var(--y2)}
+button{border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--y3);color:var(--b);font-size:14px;font-family:inherit}
+.primary{background:var(--b);color:#fff;border-color:var(--b)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.status{padding:10px 12px;border-radius:8px;background:var(--y3);font-size:13px;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}th{background:var(--y2)}
+td.up{font-weight:700;color:var(--b)}
+.hidden{display:none!important}
+ul{margin:6px 0 0;padding-left:18px}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top">
+  <h1>교사용 · 학습지와 활동 기록 모으기</h1>
+  <p>학생들이 패들렛에 올린 CSV를 한꺼번에 합치고, 사전·사후를 학생 번호로 짝지어 줍니다.</p>
+  <nav class="tabs"><a href="teacher.html" class="on">학습지 결과</a><a href="eval.html">모델 평가화면</a><a href="./">학생용 앱</a></nav>
+</header>
+
+<section class="card">
+  <h2>1. CSV 파일 넣기</h2>
+  <p class="hint">사전·사후 학습지, 실험기록, 디버깅기록, 새사진기록 CSV를 섞어서 넣어도 종류별로 나눠 줘요. 파일은 이 브라우저 안에서만 처리되고 어디에도 전송되지 않아요.</p>
+  <div class="drop" id="drop">여기로 CSV 파일을 끌어 놓거나 눌러서 선택하세요 (여러 개 가능)</div>
+  <input type="file" id="files" accept=".csv,text/csv" multiple class="hidden">
+  <div id="summary" class="status hidden"></div>
+  <div class="actions" id="actions"></div>
+</section>
+
+<section class="card hidden" id="resultCard">
+  <h2>2. 사전·사후 빠른 비교</h2>
+  <p class="hint">사전과 사후를 모두 낸 학생만 계산해요. 0~5 척도 평균과 문제 해결 점수(0~5점)입니다.</p>
+  <div id="table"></div>
+  <div id="missingBox" class="small" style="margin-top:10px"></div>
+</section>
+
+<section class="card">
+  <h2>파일 설명</h2>
+  <ul class="small">
+    <li><b>사전사후_짝비교.csv</b> – 학생 번호마다 사전·사후 점수를 한 줄에 나란히 놓은 파일 (대응표본 t검정용). 영역 평균에는 '변화' 열이 붙어요.</li>
+    <li><b>학습지_전체.csv</b> – 모든 응답과 '이유' 서술을 그대로 모은 파일 (질적 분석용)</li>
+    <li><b>실험기록 / 디버깅기록 / 새사진기록_전체.csv</b> – 3~5단계 활동 기록 합본</li>
+    <li>같은 학생이 여러 번 제출했다면 가장 마지막 제출을 사용해요.</li>
+    <li>화면의 평균은 빠른 확인용이에요. 검정 통계는 jamovi·SPSS 등에서 계산하세요.</li>
+  </ul>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toCsv(rows){ return "﻿" + rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n"); }
+function saveCsv(text, name){ const u = URL.createObjectURL(new Blob([text], { type:"text/csv;charset=utf-8" })), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }
+
+// 따옴표로 감싼 CSV를 읽어 2차원 배열로 바꾼다 (맥에서 만든 파일의 한글도 NFC로 맞춤)
+function parseCsv(text){
+  text = text.replace(/^﻿/, "").normalize("NFC"); const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n") { row.push(f); rows.push(row); row = []; f = ""; } else if (c !== "\r") f += c; }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(v => v !== ""));
+}
+// 사전·사후처럼 열 구성이 조금 달라도 열 이름 기준으로 합친다
+function unionRows(tables){
+  const head = []; tables.forEach(t => t.head.forEach(h => { if (!head.includes(h)) head.push(h); }));
+  const rows = []; tables.forEach(t => t.rows.forEach(r => rows.push(head.map(h => { const i = t.head.indexOf(h); return i < 0 ? "" : r[i]; }))));
+  return { head, rows };
+}
+
+// 파일 넣기 (끌어 놓기 + 선택)
+$("drop").onclick = () => $("files").click();
+$("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+$("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); handle([...e.dataTransfer.files]); };
+$("files").onchange = e => { handle([...e.target.files]); e.target.value = ""; };
+
+async function handle(files){
+  files = files.filter(f => /\.csv$/i.test(f.name)); if (!files.length) return alert("CSV 파일을 넣어 주세요.");
+  // 열 이름을 보고 파일 종류를 나눈다
+  const groups = { 학습지:[], 실험기록:[], 디버깅기록:[], 새사진기록:[] };
+  for (const f of files) {
+    const rows = parseCsv(await f.text()); if (rows.length < 2) continue;
+    const t = { head: rows[0], rows: rows.slice(1) };
+    if (t.head.includes("시점")) groups.학습지.push(t);
+    else if (t.head.some(h => h.startsWith("내예측"))) groups.실험기록.push(t);
+    else if (t.head.some(h => h.startsWith("왜틀렸을까"))) groups.디버깅기록.push(t);
+    else if (t.head.includes("바꾼점")) groups.새사진기록.push(t);
+  }
+  const acts = $("actions"); acts.innerHTML = "";
+  let summary = `CSV ${files.length}개를 읽었어요.`;
+  Object.entries(groups).forEach(([name, ts]) => { if (!ts.length) return;
+    const u = unionRows(ts), b = document.createElement("button");
+    b.textContent = `${name}_전체.csv (${u.rows.length}줄)`; b.onclick = () => saveCsv(toCsv([u.head, ...u.rows]), `${name}_전체.csv`); acts.appendChild(b);
+    summary += ` ${name} ${u.rows.length}줄.`; });
+
+  $("resultCard").classList.add("hidden");
+  if (groups.학습지.length) summary += pairSurveys(unionRows(groups.학습지));
+  $("summary").textContent = summary; $("summary").classList.remove("hidden");
+}
+
+// 사전·사후를 학생 번호로 짝짓기
+function pairSurveys(u){
+  const H = n => u.head.indexOf(n);
+  // 비교할 숫자 열: Q1~Q8 척도, S1~S5 점수, 영역 평균·문제해결점수
+  const numCols = u.head.filter(h => /^Q\d+_[^_]+$/.test(h) || h.endsWith("_점수") || h.includes("평균(") || h.includes("점수("));
+  const summaryCols = numCols.filter(h => h.includes("("));
+  const by = {};   // 학생 번호별 가장 마지막 사전/사후
+  u.rows.forEach(r => { const c = r[H("학생코드")], p = r[H("시점")]; if (!c) return; by[c] = by[c] || {};
+    if (!by[c][p] || r[H("제출시각")] > by[c][p][H("제출시각")]) by[c][p] = r; });
+  const head = ["학생코드","짝맞춤"];
+  numCols.forEach(h => head.push("사전_" + h, "사후_" + h, ...(summaryCols.includes(h) ? ["변화_" + h] : [])));
+  const codes = Object.keys(by).sort();
+  const rows = codes.map(c => { const pre = by[c]["사전"], post = by[c]["사후"], r = [c, pre && post ? "O" : "X"];
+    numCols.forEach(h => { const a = pre ? pre[H(h)] : "", b = post ? post[H(h)] : ""; r.push(a, b);
+      if (summaryCols.includes(h)) r.push(a !== "" && b !== "" ? (b - a).toFixed(2) : ""); });
+    return r; });
+  const b = document.createElement("button"); b.className = "primary"; b.textContent = "사전사후_짝비교.csv";
+  b.onclick = () => saveCsv(toCsv([head, ...rows]), "사전사후_짝비교.csv"); $("actions").prepend(b);
+
+  // 짝이 맞는 학생만 평균 비교
+  const paired = codes.filter(c => by[c]["사전"] && by[c]["사후"]);
+  const onlyPre = codes.filter(c => by[c]["사전"] && !by[c]["사후"]), onlyPost = codes.filter(c => !by[c]["사전"] && by[c]["사후"]);
+  if (paired.length) {
+    const mean = (p, h) => paired.reduce((s, c) => s + (+by[c][p][H(h)] || 0), 0) / paired.length;
+    $("table").innerHTML = `<table><tr><th>영역</th><th>사전 평균</th><th>사후 평균</th><th>변화</th></tr>${summaryCols.map(h => { const a = mean("사전", h), d = mean("사후", h) - a;
+      return `<tr><td>${esc(h)}</td><td>${a.toFixed(2)}</td><td>${mean("사후", h).toFixed(2)}</td><td class="${d > 0 ? "up" : ""}">${d > 0 ? "+" : ""}${d.toFixed(2)}</td></tr>`; }).join("")}</table><p class="small">n = ${paired.length}명</p>`;
+    $("missingBox").innerHTML = (onlyPre.length ? `사후 미제출: ${onlyPre.map(esc).join(", ")}번<br>` : "") + (onlyPost.length ? `사전 미제출: ${onlyPost.map(esc).join(", ")}번` : "");
+    $("resultCard").classList.remove("hidden");
+  }
+  return ` 학습지: 학생 ${codes.length}명, 사전·사후 짝 ${paired.length}명.`;
+}
+</script>
+</body>
+</html>

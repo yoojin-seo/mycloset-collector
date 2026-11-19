@@ -1,42 +1,895 @@
 <!DOCTYPE html>
-<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI 옷장 탐정 | 오류 수집실</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 옷장 탐정</title>
+<!-- 티처블 머신 내보내기 화면이 준 버전을 그대로 고정 (tfjs 1.3.1 + tmImage 0.8.5).
+     @latest로 두면 버전이 맞지 않아 모델이 안 불러와질 수 있다. -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+<!-- 사진과 기록을 ZIP 하나로 묶어 내려받기 위한 라이브러리 (브라우저 안에서만 동작) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-:root{--blue:#2563eb;--ink:#172033;--muted:#64748b;--line:#e2e8f0}*{box-sizing:border-box}body{margin:0;padding:16px;background:#f4f7fb;color:var(--ink);font-family:system-ui,sans-serif}.wrap{max-width:740px;margin:auto}.hero{background:linear-gradient(135deg,#172554,#2563eb);color:white;padding:23px;border-radius:20px}.hero h1{margin:0 0 8px}.hero p{margin:0;color:#dbeafe;line-height:1.5}.card{background:white;border:1px solid var(--line);border-radius:17px;padding:17px;margin:14px 0;box-shadow:0 4px 14px #0f172a09}h2{font-size:18px;margin:0 0 12px}.hint,.small{color:var(--muted);font-size:13px;line-height:1.5}label{display:block;font-size:13px;font-weight:700;margin:9px 0 5px}input,textarea{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:10px;font:inherit}textarea{min-height:75px}.row,.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stats{grid-template-columns:repeat(3,1fr)}.stat{background:#f8fafc;padding:12px;text-align:center;border-radius:11px}.stat b{display:block;font-size:23px}.stat span{font-size:12px;color:var(--muted)}.camera{max-width:420px;aspect-ratio:4/3;margin:12px auto;background:#0f172a;border-radius:14px;display:flex;align-items:center;justify-content:center;color:white;overflow:hidden}video{width:100%;height:100%;object-fit:cover}.preview{display:block;width:100%;max-height:340px;object-fit:contain;margin:10px auto;border-radius:12px}.hidden{display:none!important}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:10px;padding:12px 14px;font-weight:750;cursor:pointer;flex:1;min-width:125px;background:#eaf1ff;color:#1d4ed8}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:var(--blue);color:white}.green{background:#15803d;color:white}.gold{background:#fef3c7;color:#92400e}.danger{background:#fee2e2;color:#991b1b}.status{padding:11px;border-radius:10px;background:#f1f5f9;font-size:13px;margin-top:10px}.result{padding:14px;border-radius:13px;background:#eff6ff;margin-top:12px}.prediction{font-size:25px;font-weight:850;color:#1d4ed8}.barrow{display:grid;grid-template-columns:60px 1fr 48px;gap:7px;align-items:center;font-size:12px;margin:7px 0}.bar{height:9px;background:#dbeafe;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:#3b82f6}.choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.choice button{background:#f1f5f9;color:#334155;border:2px solid transparent}.choice button.selected{border-color:#2563eb;background:#dbeafe}.feedback{padding:12px;border-radius:10px;margin-top:12px;font-weight:bold}.correct{background:#dcfce7;color:#166534}.wrong{background:#fee2e2;color:#991b1b}.cause{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cause label{display:flex;align-items:center;gap:7px;border:1px solid var(--line);padding:9px;border-radius:9px;font-weight:500;margin:0}.cause input{width:auto}.thumbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}.thumb{border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:11px}.thumb img{width:100%;aspect-ratio:1;object-fit:cover}.thumb div{padding:5px}#fileInput{display:none}.footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}@media(max-width:500px){body{padding:9px}.row{grid-template-columns:1fr}.card{padding:13px}}
-</style></head><body><main class="wrap">
-<header class="hero"><h1>🕵️ AI 옷장 탐정</h1><p>옷 사진을 보여주고 AI의 판단을 확인해 봐요.<br>AI가 틀렸다면 오류를 기록하고, 왜 틀렸는지 추리해 봅시다!</p></header>
-<section class="card"><h2>① 나의 정보</h2><p class="hint">이름 대신 선생님이 안내한 익명 코드를 입력해요.</p><div class="row"><div><label>익명 학생 코드</label><input id="studentCode" maxlength="20" placeholder="예: 5-03"></div><div><label>활동 모둠/차시 (선택)</label><input id="sessionCode" maxlength="20" placeholder="예: 1모둠"></div></div></section>
-<section class="card"><h2>② AI에게 옷 사진 보여주기</h2><p class="hint">카메라로 촬영하거나 기기에 저장된 사진을 선택하세요. 한 번에 한 장씩 실험합니다.</p><div class="camera"><span id="cameraMessage">카메라를 시작하거나 사진을 선택하세요.</span><video id="video" autoplay playsinline class="hidden"></video></div><canvas id="canvas" class="hidden"></canvas><div class="actions"><button id="startCamera">📷 카메라 켜기</button><button id="capture" class="green" disabled>사진 촬영</button><button id="choosePhoto">사진 선택</button><input id="fileInput" type="file" accept="image/*" capture="environment"></div><img id="preview" class="preview hidden" alt="촬영 사진 미리보기"><div class="actions"><button id="predict" class="primary" disabled>🤖 AI에게 물어보기</button><button id="retake" disabled>다른 사진으로 다시하기</button></div><div id="modelStatus" class="status">AI 모델 주소가 아직 설정되지 않았습니다. 선생님이 모델을 연결하면 분류할 수 있어요.</div><div id="predictionBox" class="result hidden"><div class="hint">AI의 판단</div><div id="predictedLabel" class="prediction">-</div><div id="probabilities"></div></div></section>
-<section id="answerCard" class="card hidden"><h2>③ 실제 옷은 무엇인가요?</h2><p class="hint">AI의 판단과 비교할 수 있도록 실제 종류를 선택하세요.</p><div class="choice" id="actualChoices"><button data-label="상의">👕 상의</button><button data-label="하의">👖 하의</button><button data-label="양말">🧦 양말</button></div><div id="feedback" class="feedback hidden"></div><div id="errorDetails" class="hidden"><h2 style="margin-top:18px">④ 왜 AI가 틀렸을까요?</h2><p class="hint">여러 가지를 골라도 좋아요.</p><div class="cause" id="causeChoices"><label><input type="checkbox" value="옷이 구겨져 있어서">옷이 구겨져 있어서</label><label><input type="checkbox" value="사진이 어두워서">사진이 어두워서</label><label><input type="checkbox" value="무늬가 복잡해서">무늬가 복잡해서</label><label><input type="checkbox" value="옷이 너무 가까워서">옷이 너무 가까워서</label><label><input type="checkbox" value="옷의 일부만 보여서">옷의 일부만 보여서</label><label><input type="checkbox" value="배경이 복잡해서">배경이 복잡해서</label><label><input type="checkbox" value="잘 모르겠어요">잘 모르겠어요</label></div><label for="studentHypothesis">나의 생각을 더 적어보기 (선택)</label><textarea id="studentHypothesis" maxlength="500" placeholder="예: 무늬가 양말 사진과 비슷해서 그런 것 같아요."></textarea></div><button id="saveRecord" class="green" disabled style="width:100%;margin-top:15px">기록 저장하기</button><p class="small" id="saveHelp">실제 옷 종류를 선택하면 기록할 수 있어요.</p></section>
-<section class="card"><h2>⑤ 내가 모은 실험 기록</h2><div class="stats"><div class="stat"><b id="totalCount">0</b><span>전체 사진</span></div><div class="stat"><b id="correctCount">0</b><span>AI 정답</span></div><div class="stat"><b id="errorCount">0</b><span>AI 오류</span></div></div><p style="font-weight:bold;font-size:14px;margin:15px 0 7px">오류 사진 모음 <span class="small" id="errorSummary">아직 오류가 없어요.</span></p><div id="errorGallery" class="thumbgrid"><p class="hint">오류로 기록한 사진이 여기에 모여요.</p></div><div class="actions"><button id="downloadZip" class="gold">📦 사진+기록 ZIP 다운로드</button><button id="downloadCsv">📄 CSV만 다운로드</button></div><p class="small">기록은 현재 기기의 브라우저에 임시 보관됩니다. 활동을 마치면 ZIP을 다운로드해 선생님께 제출하세요. 브라우저를 닫거나 기기를 바꾸면 기록이 사라질 수 있으니 중간에도 다운로드하세요.</p></section>
-<div class="footer">AI 옷장 탐정 · 사진은 자동으로 서버에 전송되지 않습니다.</div></main>
+/* 색은 노랑(바탕) + 갈색(포인트) 두 가지 톤만 사용 */
+:root{--bg:#FBF5E6;--y:#F2C14E;--y2:#FCE9B2;--y3:#FFF8E1;--b:#6B4423;--b2:#9A6B42;--ink:#3B2A1C;--muted:#8B7762;--line:#EADCBC}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
+.wrap{max-width:760px;margin:auto}
+.top{background:var(--y);color:var(--b);padding:18px 20px;border-radius:12px}
+.top h1{margin:0;font-size:22px;letter-spacing:-.3px}
+.top p{margin:4px 0 0;font-size:14px}
+.top .who{margin-top:8px;font-size:13px;font-weight:700}
+.stepper{position:relative;display:flex;gap:6px;overflow-x:auto;padding:12px 0 2px}
+.stepper button{flex:0 0 auto;min-width:0;padding:7px 12px;font-size:13px;border-radius:8px;background:#fff}
+.stepper button.done{background:var(--y2)}
+.stepper button.active{background:var(--b);color:#fff;border-color:var(--b)}
+.step{display:none}.step.active{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin:12px 0}
+h2{font-size:19px;margin:0 0 6px;color:var(--b)}
+h3{font-size:15px;margin:18px 0 8px}
+.hint,.small{color:var(--muted);font-size:13px}
+label{display:block;font-size:13px;font-weight:700;margin:10px 0 5px}
+input,textarea,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+textarea{min-height:68px;resize:vertical}
+input:focus,textarea:focus{outline:2px solid var(--y);border-color:var(--y)}
+button,a.btn{border:1px solid var(--line);border-radius:8px;padding:11px 14px;font-weight:700;cursor:pointer;flex:1;min-width:120px;background:var(--y3);color:var(--b);font-size:14px;text-align:center;text-decoration:none;font-family:inherit}
+button:hover,a.btn:hover{border-color:var(--b2)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--b);color:#fff;border-color:var(--b)}
+.accent{background:var(--y);border-color:var(--y)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden{display:none!important}
+.notice{background:var(--y3);border-left:4px solid var(--y);padding:12px 14px;border-radius:6px;font-size:13.5px}
+.notice ul,.notice ol{margin:4px 0 0;padding-left:18px}
+.status{padding:10px 12px;border-radius:8px;background:var(--y3);font-size:13px;margin-top:10px}
+.status.err{background:#F3E6D8;color:var(--b);border:1px solid var(--b2)}
+/* 0단계 번호 고르기 */
+.codes{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
+.codes button{min-width:0;padding:12px 0;font-size:16px;background:#fff}
+.codes button.selected{background:var(--b);color:#fff;border-color:var(--b)}
+/* 카메라 */
+.camera{max-width:420px;aspect-ratio:4/3;margin:12px auto;background:#3B2A1C;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--y2);overflow:hidden;text-align:center;padding:10px;font-size:14px}
+.camera video{width:100%;height:100%;object-fit:cover}
+.preview{display:block;width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;margin:10px auto;border-radius:10px;border:1px solid var(--line)}
+.choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.choice button{min-width:0;background:#fff}
+.choice button.selected{background:var(--b);color:#fff;border-color:var(--b)}
+.choice.four{grid-template-columns:repeat(4,1fr)}
+@media(max-width:520px){.choice.four{grid-template-columns:1fr 1fr}}
+.result{padding:14px;border-radius:10px;background:var(--y3);border:1px solid var(--line);margin-top:12px}
+.prediction{font-size:24px;font-weight:800;color:var(--b)}
+.barrow{display:grid;grid-template-columns:64px 1fr 52px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.bar{height:8px;background:var(--y2);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--b2)}
+.feedback{padding:12px;border-radius:8px;margin-top:12px;font-weight:700}
+.ok{background:var(--y2);color:var(--b)}.no{background:#F3E6D8;color:var(--b);border:1px solid var(--b2)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--y3);padding:12px;text-align:center;border-radius:8px}.stat b{display:block;font-size:22px;color:var(--b)}.stat span{font-size:12px;color:var(--muted)}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chips label{display:flex;align-items:center;gap:7px;border:1px solid var(--line);padding:8px 9px;border-radius:8px;font-weight:500;margin:0;font-size:13px;cursor:pointer}
+.chips input{width:auto;margin:0;accent-color:var(--b)}
+.thumbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.thumb{border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:11px;position:relative;background:#fff}
+.thumb img{width:100%;aspect-ratio:1;object-fit:cover;display:block}.thumb div{padding:5px;word-break:keep-all}
+.thumb .del{position:absolute;top:4px;right:4px;min-width:0;padding:1px 7px;font-size:12px;background:#fff;flex:none}
+/* 학습지 */
+.sec{margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--y);font-weight:800;color:var(--b)}
+.q{border:1px solid var(--line);border-radius:10px;padding:14px;margin:10px 0}
+.q.missing{border-color:var(--b);background:#FBF0E4}
+.qn{font-weight:700;margin-bottom:10px;font-size:15px}
+/* 수직선 척도 (0~5) */
+.scale{position:relative;display:grid;grid-template-columns:repeat(6,1fr)}
+.scale .line{position:absolute;left:calc(100%/12);right:calc(100%/12);top:17px;height:3px;background:var(--line)}
+.scale .pt{background:none;border:0;min-width:0;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative;z-index:1;color:var(--ink)}
+.scale .pt i{width:24px;height:24px;border-radius:50%;background:#fff;border:3px solid var(--b2);display:block}
+.scale .pt.selected i{background:var(--b);border-color:var(--b);box-shadow:0 0 0 4px var(--y2)}
+.scale .pt span{font-weight:700;font-size:14px}
+.scale-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px}
+.opts{display:grid;gap:6px}
+.opts button{text-align:left;background:#fff;font-weight:500;line-height:1.45}
+.opts button.selected{background:var(--y2);border-color:var(--b);font-weight:700}
+.reason{margin-top:8px;min-height:54px}
+/* 문제 속 그림: 블록 코드, 표 */
+.fig{background:var(--y3);border:1px solid var(--line);border-radius:8px;padding:12px;margin:0 0 10px;font-size:13.5px}
+.blk{background:var(--y);color:var(--b);font-weight:700;padding:6px 10px;border-radius:6px;margin:4px 0;width:fit-content}
+.blk.loop{padding-bottom:8px}.blk .blk{background:#fff;margin-left:14px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}th{background:var(--y2)}
+.done-box{background:var(--y3);border:1px solid var(--y);border-radius:10px;padding:14px;margin-top:12px}
+.video{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#3B2A1C;margin-top:10px}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.debugcard{display:grid;grid-template-columns:130px 1fr;gap:14px;border:1px solid var(--line);border-radius:10px;padding:13px;margin:12px 0}
+.debugcard img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+.debugcard .tag{font-weight:800;font-size:14px;color:var(--b)}
+.debugcard .fname{font-size:12px;color:var(--muted);margin-bottom:4px}
+.progress{height:8px;background:var(--y2);border-radius:8px;overflow:hidden;margin:6px 0 2px}.progress i{display:block;height:100%;background:var(--b);width:0}
+.navbtns{display:flex;gap:8px;margin:6px 0}
+.navbtns button{background:#fff}
+#fileInput3,#fileInput5{display:none}
+.footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
+@media(max-width:520px){body{padding:9px}.card{padding:13px}.chips{grid-template-columns:1fr}.debugcard{grid-template-columns:1fr}.debugcard img{max-width:200px}.codes{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header class="top">
+  <h1>AI 옷장 탐정</h1>
+  <p>AI가 옷을 잘못 알아볼 때, 원인을 추리하고 고쳐 보는 탐정 활동</p>
+  <div class="who" id="whoLine">번호를 먼저 골라 주세요.</div>
+</header>
+
+<!-- 단계 표시줄: 버튼을 누르면 해당 단계로 이동 -->
+<nav class="stepper" id="stepper"></nav>
+
+<!-- ───────── 0. 시작: 번호 고르기 ───────── -->
+<section class="step" data-step="0">
+  <div class="card">
+    <h2>탐정 등록</h2>
+    <p class="hint">이 앱에는 이름을 쓰지 않아요. 선생님이 알려 준 <b>내 번호</b>를 눌러 주세요.</p>
+    <div class="codes" id="codeGrid"></div>
+    <div class="actions"><button class="primary" id="startBtn" disabled>번호를 골라 주세요</button></div>
+  </div>
+  <div class="card">
+    <h2>활동 순서</h2>
+    <ol style="margin:6px 0 0;padding-left:20px;line-height:1.9;font-size:14px">
+      <li>사전 학습지 – 지금 나의 생각하는 힘 알아보기</li>
+      <li>티처블 머신 알아보기 – 영상 보고 직접 해 보기</li>
+      <li>AI 실험 – AI의 답을 먼저 예측하고 사진 찍기</li>
+      <li>디버깅 – AI가 틀린 이유 추리하기</li>
+      <li>새 사진 찍기 – 내 생각을 반영한 사진 모으기</li>
+      <li>고친 AI 확인 – 선생님이 고친 AI로 확인하기</li>
+      <li>사후 학습지 – 달라진 나의 생각하는 힘 알아보기</li>
+    </ol>
+    <div class="notice" style="margin-top:12px">사진과 기록은 <b>이 기기 브라우저 안에만</b> 잠시 보관되고, 자동으로 어디에도 보내지지 않아요. 새로고침하거나 창을 닫으면 사라지니 단계마다 <b>다운로드 → 패들렛 올리기</b>를 꼭 해 주세요.</div>
+  </div>
+</section>
+
+<!-- ───────── 1. 사전 학습지 ───────── -->
+<section class="step" data-step="1">
+  <div class="card">
+    <h2>1단계 · 사전 학습지</h2>
+    <p class="hint">시험이 아니에요. 앞부분은 지금 내 모습에 가까운 숫자를, 뒷부분은 문제를 직접 풀어 답을 골라 주세요.</p>
+    <div id="preQuestions"></div>
+    <div class="actions" id="preSubmitRow"><button class="primary" id="preSubmit">제출하기</button></div>
+    <div class="done-box hidden" id="preDone">
+      <b>사전 학습지를 제출했어요.</b>
+      <p class="small" style="margin:4px 0 0">결과 파일을 내려받아 패들렛에 올려 주세요.</p>
+      <div class="actions">
+        <button class="accent" id="preCsv">사전 학습지 결과 다운로드</button>
+        <a class="btn" id="preSubmitLink" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+      </div>
+      <div class="actions"><button id="preEdit">답 고치기</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 2. 티처블 머신 알아보기 ───────── -->
+<section class="step" data-step="2">
+  <div class="card">
+    <h2>2단계 · 티처블 머신은 무엇일까?</h2>
+    <p class="hint">영상을 보면서 아래 질문의 답을 생각해 보세요.</p>
+    <!-- 앱 안에서 재생. 학교망·영상 설정 때문에 막히면 아래 버튼으로 유튜브에서 본다 -->
+    <div class="video"><iframe id="ytFrame" title="티처블 머신 학습 영상" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+    <div class="actions"><a class="btn accent" id="ytLink" target="_blank" rel="noopener">영상이 안 나오면 여기를 눌러 유튜브에서 보기</a></div>
+    <div class="notice" style="margin-top:12px">
+      <b>생각해 볼 질문</b>
+      <ul>
+        <li>티처블 머신에서 AI는 무엇을 보고 배우나요?</li>
+        <li>'클래스'는 무엇일까요?</li>
+        <li>AI가 잘 맞히게 하려면 어떤 사진을 넣어야 할까요?</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h2>직접 해 보기: 나만의 AI 만들기</h2>
+    <p class="hint">로그인 없이 바로 해 볼 수 있어요. 내 주변 물건 두 가지(예: 연필과 지우개)를 구분하는 AI를 만들어 봐요.</p>
+    <ol style="padding-left:20px;font-size:14px;line-height:1.85;margin:8px 0">
+      <li>아래 버튼을 눌러 티처블 머신을 열어요.</li>
+      <li><b>Class 1</b>, <b>Class 2</b> 이름을 물건 이름으로 바꿔요. (연필, 지우개)</li>
+      <li><b>웹캠</b> 버튼을 눌러 각 물건 사진을 20장 이상 찍어요.</li>
+      <li><b>모델 학습시키기</b>를 누르고 기다려요. 학습이 끝날 때까지 탭을 바꾸지 않아요.</li>
+      <li>오른쪽 <b>미리보기</b>에 물건을 보여 주며 AI가 맞히는지 확인해요.</li>
+      <li>배경을 바꾸거나, 멀리·가까이 보여 주며 <b>AI가 언제 틀리는지</b> 찾아봐요.</li>
+    </ol>
+    <div class="actions"><a class="btn primary" href="https://teachablemachine.withgoogle.com/train/image" target="_blank" rel="noopener">티처블 머신 열기 (새 탭)</a></div>
+    <div class="notice" style="margin-top:12px">
+      <ul>
+        <li>얼굴이나 친구 모습이 찍히지 않게 <b>물건만</b> 보여 주세요.</li>
+        <li>탭을 닫으면 만든 모델이 사라져요. (구글 드라이브 저장은 하지 않아요)</li>
+        <li>크롬 브라우저에서 가장 잘 작동해요.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 3. AI 실험 ───────── -->
+<section class="step" data-step="3">
+  <div class="card">
+    <h2>3단계 · AI에게 옷 사진 보여주기</h2>
+    <div class="notice">
+      <b>이 AI의 사용 범위와 한계</b>
+      <ul>
+        <li>이 AI는 <b>상의 · 하의 · 양말</b> 3가지만 배웠어요. 다른 물건을 보여줘도 셋 중 하나로 답해요.</li>
+        <li>AI가 고른 답의 확률이 <b id="thLabel">60%</b>보다 낮으면 <b>'잘 모르겠어요'</b>라고 표시해요.</li>
+        <li>얼굴, 이름표, 친구 모습이 나오지 않게 <b>옷만</b> 찍어요.</li>
+      </ul>
+    </div>
+    <h3>① 사진 찍기 (한 번에 한 장)</h3>
+    <div class="camera"><span id="c3Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c3Video" autoplay playsinline muted class="hidden"></video></div>
+    <div class="actions">
+      <button id="c3Start">카메라 켜기</button>
+      <button id="c3Capture" class="primary" disabled>사진 촬영</button>
+      <button id="c3Choose">사진 선택</button>
+      <input id="fileInput3" type="file" accept="image/*">
+    </div>
+    <p class="small">사진의 가운데 정사각형 부분이 AI에게 전달돼요.</p>
+
+    <div id="s3Flow" class="hidden">
+      <img id="s3Preview" class="preview" alt="찍은 사진">
+      <h3>② 먼저 예측해요: AI는 이 사진을 뭐라고 할까?</h3>
+      <div class="choice" id="s3Guess"></div>
+      <div class="actions">
+        <button id="s3Ask" class="primary" disabled>AI에게 물어보기</button>
+        <button id="s3Retake">다른 사진으로 다시하기</button>
+      </div>
+    </div>
+    <div id="modelStatus" class="status">AI 모델을 준비하고 있어요...</div>
+
+    <div id="s3Result" class="hidden">
+      <div class="result">
+        <div class="hint">AI의 판단</div>
+        <div id="s3Label" class="prediction">-</div>
+        <div id="s3Bars"></div>
+        <div class="small" id="s3GuessCompare" style="margin-top:6px"></div>
+        <div id="s3Unsure" class="notice hidden" style="margin-top:10px"><b>AI가 헷갈려해요. 다시 찍는다면</b><ul id="s3Tips"></ul></div>
+      </div>
+      <h3>③ 실제 옷은 무엇인가요?</h3>
+      <div class="choice" id="s3Actual"></div>
+      <div id="s3Feedback" class="feedback hidden"></div>
+      <button id="s3Save" class="primary" disabled style="width:100%;margin-top:12px">기록 저장하기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>나의 실험 기록</h2>
+    <div class="stats">
+      <div class="stat"><b id="sTotal">0</b><span>전체 사진</span></div>
+      <div class="stat"><b id="sAiOk">0</b><span>AI가 맞힘</span></div>
+      <div class="stat"><b id="sAiErr">0</b><span id="sAiErrLabel">AI가 틀림</span></div>
+    </div>
+    <p class="small" id="sGuessRate" style="text-align:center;margin:8px 0 0">AI의 답을 예측한 기록이 아직 없어요.</p>
+    <h3>AI가 틀린 사진 모음</h3>
+    <div id="s3Gallery" class="thumbgrid"><p class="hint">AI가 틀린 사진이 여기에 모여요.</p></div>
+    <div class="actions">
+      <button class="accent" id="s3Zip">틀린 사진 한번에 ZIP 다운로드</button>
+      <a class="btn" id="s3Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+    </div>
+    <div class="actions"><button id="s3Csv">전체 실험 기록 CSV</button></div>
+  </div>
+</section>
+
+<!-- ───────── 4. 디버깅 ───────── -->
+<section class="step" data-step="4">
+  <div class="card">
+    <h2>4단계 · 디버깅: AI는 왜 틀렸을까?</h2>
+    <p class="hint">AI가 틀린 사진을 하나씩 보며 추리해요. <b>원인 → 다시 찍을 사진 → AI 고치는 방법</b> 순서로 적어 보세요.</p>
+    <div class="progress"><i id="s4Bar"></i></div>
+    <p class="small" id="s4Count"></p>
+    <div id="s4List"></div>
+    <div class="actions">
+      <button class="accent" id="s4Zip">디버깅 기록 + 사진 ZIP</button>
+      <button id="s4Csv">디버깅 기록 CSV</button>
+      <a class="btn" id="s4Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 5. 새 사진 찍기 ───────── -->
+<section class="step" data-step="5">
+  <div class="card">
+    <h2>5단계 · 내 생각을 반영해 새 사진 찍기</h2>
+    <p class="hint">4단계에서 세운 계획대로 사진을 찍어요. 이 사진들로 선생님이 AI를 고쳐서 <b>v2 버전</b>을 만들 거예요.</p>
+    <div class="notice" id="s5Plan">4단계 디버깅 계획이 아직 없어요.</div>
+    <div class="camera"><span id="c5Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c5Video" autoplay playsinline muted class="hidden"></video></div>
+    <div class="actions">
+      <button id="c5Start">카메라 켜기</button>
+      <button id="c5Capture" class="primary" disabled>사진 촬영</button>
+      <button id="c5Choose">사진 선택</button>
+      <input id="fileInput5" type="file" accept="image/*">
+    </div>
+    <p class="small">얼굴, 이름표, 친구 모습이 나오지 않게 옷만 찍어요.</p>
+    <div id="s5Form" class="hidden">
+      <img id="s5Preview" class="preview" alt="새로 찍은 사진">
+      <label>이 사진의 옷 종류는?</label>
+      <div class="choice" id="s5Label"></div>
+      <label>어떤 점을 바꿔서 찍었나요? (여러 개 골라요)</label>
+      <div class="chips" id="s5Strats"></div>
+      <label for="s5Memo">한 줄 설명 (선택)</label>
+      <input id="s5Memo" maxlength="100" placeholder="예: 어두운 곳에서 양말을 펼쳐서 찍었어요">
+      <div class="actions"><button class="primary" id="s5Add" disabled>이 사진 모음에 추가</button><button id="s5Cancel">취소</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>새 사진 모음</h2>
+    <div class="stats">
+      <div class="stat"><b id="n상의">0</b><span>상의</span></div>
+      <div class="stat"><b id="n하의">0</b><span>하의</span></div>
+      <div class="stat"><b id="n양말">0</b><span>양말</span></div>
+    </div>
+    <div id="s5Gallery" class="thumbgrid" style="margin-top:12px"><p class="hint">추가한 사진이 여기에 모여요.</p></div>
+    <div class="actions">
+      <button class="accent" id="s5Zip">새 사진 ZIP 다운로드</button>
+      <a class="btn" id="s5Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+    </div>
+    <p class="small">ZIP 안에는 상의/하의/양말 폴더별로 사진이 나뉘어 있어요.</p>
+  </div>
+</section>
+
+<!-- ───────── 6. 고친 AI 확인 (비워 둠) ───────── -->
+<section class="step" data-step="6">
+  <div class="card">
+    <h2>6단계 · 고친 AI(v2) 확인하기</h2>
+    <div id="v2Box">
+      <div class="notice">선생님이 여러분이 찍은 사진으로 AI를 고치고 있어요.<br>준비가 되면 이곳에서 내가 예측한 디버깅이 효과가 있었는지 확인할 수 있어요.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 7. 사후 학습지 ───────── -->
+<section class="step" data-step="7">
+  <div class="card">
+    <h2>7단계 · 사후 학습지</h2>
+    <p class="hint">활동을 마친 지금, 앞부분은 내 모습에 가까운 숫자를, 뒷부분은 문제를 직접 풀어 답을 골라 주세요.</p>
+    <div id="postQuestions"></div>
+    <div class="actions" id="postSubmitRow"><button class="primary" id="postSubmit">제출하기</button></div>
+    <div class="done-box hidden" id="postDone">
+      <b>탐정 활동을 모두 마쳤어요. 수고했어요!</b>
+      <p class="small" style="margin:4px 0 0">결과 파일을 내려받아 패들렛에 올려 주세요.</p>
+      <div class="actions">
+        <button class="accent" id="postCsv">사후 학습지 결과 다운로드</button>
+        <a class="btn" id="postSubmitLink" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+      </div>
+      <div class="actions"><button id="postEdit">답 고치기</button></div>
+    </div>
+  </div>
+</section>
+
+<div class="navbtns"><button id="prevBtn">← 이전 단계</button><button id="nextBtn" class="primary">다음 단계 →</button></div>
+<div class="footer">AI 옷장 탐정 · 사진과 기록은 서버로 자동 전송되지 않습니다.</div>
+</main>
+
 <script>
-// 선생님 설정: 아래 문자열을 Teachable Machine의 TensorFlow.js 모델 URL로 교체하세요.
-// 예: https://teachablemachine.withgoogle.com/models/AbCdEf123/ (마지막 / 포함)
-const TM_MODEL_URL="PASTE_TEACHABLE_MACHINE_MODEL_URL_HERE";
-const $=id=>document.getElementById(id);let model=null,stream=null,photo=null,predictions=null,actual=null,records=[];
-const video=$("video"),canvas=$("canvas"),ctx=canvas.getContext("2d");
-function status(t,error=false){$("modelStatus").textContent=t;$("modelStatus").style.background=error?"#fee2e2":"#f1f5f9"}
-function norm(s){let x=String(s).replace(/\s/g,"").toLowerCase();if(x.includes("상의")||x.includes("top")||x.includes("shirt"))return"상의";if(x.includes("하의")||x.includes("bottom")||x.includes("pants"))return"하의";if(x.includes("양말")||x.includes("sock"))return"양말";return String(s).trim()}
-async function loadModel(){if(TM_MODEL_URL.includes("PASTE_"))return;try{status("AI 모델을 불러오는 중...");model=await tmImage.load(TM_MODEL_URL+"model.json",TM_MODEL_URL+"metadata.json");status("AI 모델 준비 완료! 사진을 촬영하거나 선택하세요.");$("predict").disabled=!photo}catch(e){console.error(e);status("모델을 불러오지 못했어요. 모델 URL을 확인해 주세요.",true)}}loadModel();
-$("startCamera").onclick=async()=>{try{if(stream)stream.getTracks().forEach(t=>t.stop());stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});video.srcObject=stream;video.classList.remove("hidden");$("cameraMessage").classList.add("hidden");$("capture").disabled=false;await video.play()}catch(e){status("카메라 권한을 확인하거나 사진 선택을 이용해 주세요.",true)}};
-$("capture").onclick=()=>{if(!video.videoWidth)return;let side=Math.min(video.videoWidth,video.videoHeight),sx=(video.videoWidth-side)/2,sy=(video.videoHeight-side)/2;canvas.width=side;canvas.height=side;ctx.drawImage(video,sx,sy,side,side,0,0,side,side);setPhoto(canvas.toDataURL("image/jpeg",.88))};
-$("choosePhoto").onclick=()=>$("fileInput").click();
-$("fileInput").onchange=e=>{let f=e.target.files[0];if(!f)return;if(!f.type.startsWith("image/")){alert("이미지 파일을 선택해 주세요.");return}let r=new FileReader();r.onload=()=>setPhoto(r.result);r.readAsDataURL(f);e.target.value=""};
-function setPhoto(d){photo=d;predictions=null;actual=null;$("preview").src=d;$("preview").classList.remove("hidden");$("predictionBox").classList.add("hidden");$("answerCard").classList.add("hidden");$("predict").disabled=!model;$("retake").disabled=false}
-$("retake").onclick=()=>{photo=null;$("preview").classList.add("hidden");$("predictionBox").classList.add("hidden");$("answerCard").classList.add("hidden");$("predict").disabled=true;$("retake").disabled=true};
-$("predict").onclick=()=>{if(!model||!photo)return;$("predict").disabled=true;status("AI가 사진을 살펴보고 있어요...");let img=new Image();img.onload=async()=>{try{predictions=(await model.predict(img)).map(p=>({label:norm(p.className),probability:p.probability})).sort((a,b)=>b.probability-a.probability);$("predictedLabel").textContent=predictions[0].label;$("probabilities").innerHTML=predictions.map(p=>`<div class="barrow"><span>${esc(p.label)}</span><div class="bar"><i style="width:${Math.round(p.probability*100)}%"></i></div><b>${(p.probability*100).toFixed(1)}%</b></div>`).join("");$("predictionBox").classList.remove("hidden");$("answerCard").classList.remove("hidden");$("errorDetails").classList.add("hidden");$("feedback").classList.add("hidden");$("saveRecord").disabled=true;status("분류가 끝났어요. 실제 옷 종류를 선택해 주세요.")}catch(e){console.error(e);status("분류에 실패했어요. 다른 사진으로 시도해 주세요.",true)}$("predict").disabled=false};img.onerror=()=>{status("사진을 읽지 못했어요.",true);$("predict").disabled=false};img.src=photo};
-document.querySelectorAll("#actualChoices button").forEach(b=>b.onclick=()=>{actual=b.dataset.label;document.querySelectorAll("#actualChoices button").forEach(x=>x.classList.toggle("selected",x===b));let ok=actual===predictions[0].label;$("feedback").className="feedback "+(ok?"correct":"wrong");$("feedback").textContent=ok?"✅ AI가 맞혔어요!":"❌ AI가 틀렸어요. 오류 원인을 추리해 봅시다.";$("feedback").classList.remove("hidden");$("errorDetails").classList.toggle("hidden",ok);$("saveRecord").disabled=false;$("saveHelp").textContent="기록을 저장할 수 있어요."});
-$("saveRecord").onclick=()=>{let code=$("studentCode").value.trim();if(!code){alert("익명 학생 코드를 입력해 주세요.");$("studentCode").focus();return}if(!photo||!predictions||!actual)return;let ok=actual===predictions[0].label;records.push({id:records.length+1,time:new Date().toISOString(),studentCode:code,session:$("sessionCode").value.trim(),actual,predicted:predictions[0].label,confidence:predictions[0].probability,probabilities:predictions,isCorrect:ok,causes:ok?[]:[...document.querySelectorAll("#causeChoices input:checked")].map(x=>x.value),hypothesis:$("studentHypothesis").value.trim(),image:photo});render();alert(ok?"정답 기록을 저장했어요!":"오류 사진과 추리 내용을 저장했어요!");photo=null;predictions=null;actual=null;$("preview").classList.add("hidden");$("predictionBox").classList.add("hidden");$("answerCard").classList.add("hidden");$("predict").disabled=true;$("retake").disabled=true;$("studentHypothesis").value="";document.querySelectorAll("#causeChoices input").forEach(x=>x.checked=false)};
-function render(){let err=records.filter(r=>!r.isCorrect);$("totalCount").textContent=records.length;$("correctCount").textContent=records.length-err.length;$("errorCount").textContent=err.length;$("errorSummary").textContent=err.length?`${err.length}장의 오류 사진`:"아직 오류가 없어요.";$("errorGallery").innerHTML=err.length?err.map(r=>`<div class="thumb"><img src="${r.image}"><div>#${r.id} · ${esc(r.actual)}→${esc(r.predicted)}</div></div>`).join(""):'<p class="hint">오류로 기록한 사진이 여기에 모여요.</p>'}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function csv(){let h=["기록번호","촬영시각","익명학생코드","모둠/차시","실제종류","AI예측","최고확률","정오답","학생가설원인","학생추가설명","전체예측확률"];let rows=records.map(r=>[r.id,r.time,r.studentCode,r.session,r.actual,r.predicted,(r.confidence*100).toFixed(1)+"%",r.isCorrect?"정답":"오류",r.causes.join("; "),r.hypothesis,r.probabilities.map(p=>p.label+":"+(p.probability*100).toFixed(1)+"%").join("; ")]);return"\uFEFF"+[h,...rows].map(a=>a.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n")}
-function saveBlob(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1200)}
-function code(){return($("studentCode").value.trim()||"학생").replace(/[^\w가-힣-]/g,"_")}
-$("downloadCsv").onclick=()=>{if(!records.length)return alert("저장된 기록이 없습니다.");saveBlob(new Blob([csv()],{type:"text/csv;charset=utf-8"}),`AI오류기록_${code()}.csv`)};
-$("downloadZip").onclick=async()=>{if(!records.length)return alert("저장된 기록이 없습니다.");let z=new JSZip(),folder=z.folder("images");records.forEach(r=>folder.file(`${r.isCorrect?"정답":"오류"}_${String(r.id).padStart(3,"0")}_${r.actual}_AI-${r.predicted}.jpg`,r.image.split(",")[1],{base64:true}));z.file("results.csv",csv());z.file("records.json",JSON.stringify(records.map(({image,...m})=>m),null,2));z.file("안내.txt","학생 촬영 사진, AI 예측, 실제 정답 및 학생 가설 기록입니다. 사진과 CSV의 기록번호로 연결할 수 있습니다.");saveBlob(await z.generateAsync({type:"blob"}),`AI오류수집_${code()}.zip`)};
-window.addEventListener("beforeunload",()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
-</script></body></html>
+/* =========================================================
+   1. 선생님 설정 (여기만 바꾸면 됨)
+   ========================================================= */
+// 모델 파일 3개(model.json, metadata.json, weights.bin)를 index.html과 같은 폴더에 두면 "./" 그대로 사용
+// 티처블 머신 클라우드에 업로드했다면 "https://teachablemachine.withgoogle.com/models/XXXX/" 로 교체
+const TM_MODEL_URL = "./";
+// '잘 모르겠어요' 기준값: 가장 높은 확률이 이 값보다 낮으면 답하지 않는다.
+// 0.65 = 11주차 '기준값 고르는 순서'대로 '답한 것의 정확도 95% 이상'을 넘는 가장 낮은 값(예시 표 기준).
+// 고정 개발용 사진으로 eval.html의 '기준값 정하기 표'를 보고 확인·수정한다.
+// 주소 뒤에 ?th=0.99 를 붙이면 코드를 고치지 않고 다른 기준값으로 시험해 볼 수 있다.
+const TH_PARAM = parseFloat(new URLSearchParams(location.search).get("th"));
+const THRESHOLD = TH_PARAM >= 0 && TH_PARAM < 1 ? TH_PARAM : 0.65;
+const UNSURE_TIPS = ["옷을 화면 가운데에 크게 놓아요", "밝은 곳에서 찍어요", "무늬 없는 바닥이나 벽 앞에 놓고 찍어요"];
+const STUDENT_COUNT = 24;         // 0단계에 보여 줄 번호 개수 (01 ~ 24)
+const PADLET_URL = "https://padlet.com/seoyj980130/5-3-s024awos31um54lu65da";  // 사진 ZIP 올리는 곳
+const SURVEY_SUBMIT_URL = PADLET_URL;  // 학습지 CSV 올리는 곳 (친구가 못 보게 하려면 별도 패들렛으로 교체)
+const V2_APP_URL = "";            // 6단계: v2 웹앱 주소를 나중에 넣는다 (비워 두면 '준비 중' 표시)
+const VIDEO_ID = "XYnImGQuWbU";   // 2단계 학습 영상
+const CLASSES = ["상의", "하의", "양말"];
+const UNSURE = "잘 모르겠어요";
+
+/* =========================================================
+   2. 사전·사후 학습지 문항
+   - Q1~Q8(0~5 수직선)과 S1~S5(직접 푸는 문제)는 사전·사후가 똑같다
+     → 같은 문항끼리 짝지어 비교(대응표본 t검정)
+   - 사전에만 B1~B2(배경 조사), 사후에만 R1~R2(활동 돌아보기)
+   ========================================================= */
+const AREA = { BG:"나에 대해", CT:"나는 어떤 사람일까? (0~5 중 하나를 골라요)", DBG:"디버깅", TM:"티처블 머신 활용", SOLVE:"문제를 직접 해결해 봐요", REF:"활동 돌아보기" };
+const LIKERT_ITEMS = [
+  { id:"Q1", key:"분해",       area:"CT",  text:"어려운 문제를 만나면 작은 문제로 나누어 하나씩 해결할 수 있어요." },
+  { id:"Q2", key:"패턴인식",   area:"CT",  text:"여러 사진이나 자료를 보고 공통점이나 규칙을 찾을 수 있어요." },
+  { id:"Q3", key:"추상화",     area:"CT",  text:"문제를 해결할 때 꼭 필요한 정보와 필요 없는 정보를 구별할 수 있어요." },
+  { id:"Q4", key:"알고리즘",   area:"CT",  text:"문제를 해결하는 순서를 차례대로 정리해서 설명할 수 있어요." },
+  { id:"Q5", key:"원인찾기",   area:"DBG", text:"결과가 내 예상과 다르면, 왜 그런지 원인을 찾아보려고 해요." },
+  { id:"Q6", key:"수정확인",   area:"DBG", text:"원인을 짐작하면 한 가지씩 바꿔 보면서 정말 그것 때문인지 확인할 수 있어요." },
+  { id:"Q7", key:"AI학습이해", area:"TM",  text:"인공지능이 사진(데이터)을 보고 배운다는 것을 친구에게 설명할 수 있어요." },
+  { id:"Q8", key:"티처블머신활용", area:"TM", text:"티처블 머신으로 사진을 구분하는 인공지능을 만들거나 고칠 수 있어요." }
+].map(q => ({ ...q, type:"likert" }));
+
+// 직접 푸는 문제 (fig = 문제 속 그림, reason = 이유 쓰기 칸)
+const PROBLEMS = [
+  { id:"S1", key:"원인추론", answer:"a",
+    text:"어두운 방에서 찍은 양말 사진을 AI가 '상의'라고 했어요. 가장 먼저 확인할 것은 무엇일까요?",
+    options:{ a:"AI가 배운 사진 중에 어두운 곳에서 찍은 양말 사진이 있었는지", b:"태블릿이 고장 났는지", c:"같은 사진으로 AI에게 여러 번 다시 물어보기", d:"'양말' 클래스 이름을 '발'로 바꾸기" } },
+  { id:"S2", key:"데이터수집", answer:"b",
+    text:"옷을 더 잘 구분하는 AI를 만들려면 학습 사진을 어떻게 모으는 것이 가장 좋을까요?",
+    options:{ a:"같은 책상 위에서 같은 각도로 상의 사진만 100장 찍기", b:"배경·거리·각도·밝기를 바꿔 가며 세 종류 옷을 비슷한 수만큼 찍기", c:"AI가 헷갈리지 않게 사진 수를 줄이기", d:"인터넷에서 아무 옷 사진이나 많이 내려받기" } },
+  { id:"S3", key:"블록코드디버깅", answer:"a", reason:true,
+    text:"로봇이 한 변이 100인 정사각형을 그리도록 아래처럼 코딩했어요. 그런데 'ㄷ' 모양만 그려졌어요. 어느 부분을 고쳐야 할까요?",
+    fig:`<div class="blk">시작하기를 클릭했을 때</div><div class="blk">펜 내리기</div><div class="blk loop">3 번 반복하기<div class="blk">100 만큼 움직이기</div><div class="blk">90 도 돌기</div></div>`,
+    options:{ a:"'3 번 반복하기'를 '4 번 반복하기'로 바꾼다", b:"'100 만큼 움직이기'를 '200 만큼 움직이기'로 바꾼다", c:"'90 도 돌기'를 '45 도 돌기'로 바꾼다", d:"'펜 내리기'를 지운다" } },
+  { id:"S4", key:"배경편향찾기", answer:"a", reason:true,
+    text:"지우는 아래처럼 사진을 모아 옷 분류 AI를 만들었어요. 그런데 흰 침대 위에 놓은 양말을 보여 주자 AI가 '상의'라고 했어요. 가장 큰 원인은 무엇일까요?",
+    fig:`<table><tr><th>클래스</th><th>사진 수</th><th>찍은 장소</th></tr><tr><td>상의</td><td>50장</td><td>모두 흰 침대 위</td></tr><tr><td>하의</td><td>50장</td><td>모두 나무 바닥</td></tr><tr><td>양말</td><td>50장</td><td>모두 나무 바닥</td></tr></table>`,
+    options:{ a:"AI가 옷 모양보다 '흰 침대' 배경을 보고 상의라고 배웠다", b:"양말 사진 수가 상의보다 적었다", c:"클래스 순서에서 상의가 맨 위에 있었다", d:"사진이 컬러여서 AI가 헷갈렸다" } },
+  { id:"S5", key:"한가지씩바꿔확인", answer:"a", reason:true,
+    text:"민수는 'AI가 양말을 틀린 건 사진이 어두워서야'라고 생각했어요. 이 생각이 맞는지 확인하는 가장 좋은 방법은 무엇일까요?",
+    options:{ a:"같은 양말을 같은 자리에서 밝게 한 번, 어둡게 한 번 찍어 AI 결과를 비교한다", b:"여러 옷을 여러 장소에서 아무렇게나 많이 찍어 본다", c:"모델을 지우고 처음부터 다시 만든다", d:"AI가 맞힐 때까지 같은 사진을 계속 보여 준다" } }
+].map(q => ({ ...q, type:"mc", area:"SOLVE" }));
+const CORE = [...LIKERT_ITEMS, ...PROBLEMS];
+
+const PRE_EXTRA = [
+  { id:"B1", key:"코딩경험", area:"BG", type:"choice", text:"블록 코딩(엔트리, 스크래치 등)이나 코딩을 해 본 적이 있나요?",
+    options:{ a:"해 본 적 없어요", b:"1~2번 해 봤어요", c:"여러 번 해 봤어요" } },
+  { id:"B2", key:"티처블머신경험", area:"BG", type:"choice", text:"티처블 머신을 사용해 본 적이 있나요?",
+    options:{ a:"처음 들어 봐요", b:"들어 봤지만 써 본 적은 없어요", c:"써 본 적 있어요" } }
+];
+const POST_EXTRA = [
+  { id:"R1", key:"도움된단계", area:"REF", type:"choice", text:"생각하는 힘을 키우는 데 가장 도움이 된 활동은 무엇인가요?",
+    options:{ a:"AI의 답을 예측하고 사진 찍기 (3단계)", b:"AI가 틀린 이유 추리하기 (4단계)", c:"계획대로 새 사진 찍기 (5단계)", d:"고친 AI로 확인하기 (6단계)" } },
+  { id:"R2", key:"나의해결순서", area:"REF", type:"text", optional:true, text:"앞으로 AI가 틀린 답을 내면, 나는 어떤 순서로 해결할지 적어 보세요. (선택)" }
+];
+const NUM = { a:"①", b:"②", c:"③", d:"④" };
+
+/* 4~5단계 선택지 */
+const CAUSES = ["사진이 어두워서","너무 밝거나 빛이 반사돼서","옷이 구겨지거나 접혀서","무늬나 색이 특이해서","너무 가까이/멀리 찍어서","옷의 일부만 보여서","배경이 복잡해서","각도가 특이해서","다른 옷과 모양이 비슷해서","잘 모르겠어요"];
+const FIXES  = ["이 옷 종류 사진을 더 많이 넣기","여러 가지 배경에서 찍은 사진 넣기","거리·각도를 바꾼 사진 넣기","밝기가 다른 사진 넣기","세 종류 사진 수를 비슷하게 맞추기","잘못 들어간 사진 빼기"];
+const STRATS = ["배경을 바꿨어요","거리를 바꿨어요","각도를 바꿨어요","밝기를 바꿨어요","옷을 펼치거나 접어서 찍었어요","다른 무늬·색의 옷을 찍었어요"];
+
+/* =========================================================
+   3. 앱 상태 (모두 메모리에만 있음 → 새로고침하면 사라짐)
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const S = {
+  code: "",
+  pre:  { answers:{}, submitted:false, time:"" },
+  post: { answers:{}, submitted:false, time:"" },
+  trials: [],       // 3단계 실험 기록 (디버깅 내용은 trial.debug에 붙음)
+  newPhotos: [],    // 5단계 새 사진
+  errCount: { 상의:0, 하의:0, 양말:0 },  // 틀린 사진 번호 매기기용 (옷 종류별)
+  newCount: { 상의:0, 하의:0, 양말:0 }   // 새 사진 번호 매기기용 (지워도 번호가 겹치지 않게 계속 증가)
+};
+const unsaved = { pre:false, post:false, trials:false, debug:false, photos:false };  // 아직 다운로드 안 한 기록
+let current = 0, model = null, stream = null, pickedCode = "";
+let cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null };
+let cur5 = { photo:null, label:null };
+
+/* =========================================================
+   4. 공통 도우미 함수
+   ========================================================= */
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const pct = p => (p * 100).toFixed(1) + "%";
+// 2차원 배열 → CSV 글자 (엑셀에서 한글이 안 깨지게 맨 앞에 BOM 추가)
+function toCsv(rows){ return "﻿" + rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n"); }
+// 파일을 학생 기기에 저장 (서버로 보내지 않음)
+function saveBlob(blob, name){ const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }
+const saveCsv = (text, name) => saveBlob(new Blob([text], { type:"text/csv;charset=utf-8" }), name);
+const b64 = dataUrl => dataUrl.split(",")[1];
+// 사진 가운데를 정사각형으로 잘라 최대 512px JPEG로 만든다 (파일 크기 줄이기)
+function squareFrom(src, w, h, max = 512){
+  const side = Math.min(w, h), out = Math.min(side, max), c = document.createElement("canvas");
+  c.width = c.height = out;
+  c.getContext("2d").drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, out, out);
+  return c.toDataURL("image/jpeg", 0.88);
+}
+// 티처블 머신 클래스 이름이 영어/띄어쓰기가 달라도 상의·하의·양말로 맞춘다
+function norm(s){ const x = String(s).replace(/\s/g, "").toLowerCase();
+  if (x.includes("상의") || x.includes("top") || x.includes("shirt")) return "상의";
+  if (x.includes("하의") || x.includes("bottom") || x.includes("pants")) return "하의";
+  if (x.includes("양말") || x.includes("sock")) return "양말";
+  return String(s).trim(); }
+function choiceButtons(boxId, onPick, list = CLASSES){
+  const box = $(boxId);
+  box.classList.toggle("four", list.length === 4);
+  box.innerHTML = list.map(c => `<button type="button" data-v="${c}">${c}</button>`).join("");
+  box.querySelectorAll("button").forEach(b => b.onclick = () => {
+    box.querySelectorAll("button").forEach(x => x.classList.toggle("selected", x === b));
+    onPick(b.dataset.v);
+  });
+}
+
+/* =========================================================
+   5. 단계 이동
+   ========================================================= */
+const STEPS = [[0,"시작"],[1,"사전 학습지"],[2,"티처블 머신"],[3,"AI 실험"],[4,"디버깅"],[5,"새 사진"],[6,"고친 AI 확인"],[7,"사후 학습지"]];
+function stepDone(n){
+  if (n === 0) return !!S.code;
+  if (n === 1) return S.pre.submitted;
+  if (n === 3) return S.trials.length > 0;
+  if (n === 4) { const e = errors(); return e.length > 0 && e.every(t => t.debug.why.trim() && t.debug.howPhoto.trim()); }
+  if (n === 5) return S.newPhotos.length > 0;
+  if (n === 7) return S.post.submitted;
+  return false;
+}
+function renderStepper(){
+  $("stepper").innerHTML = STEPS.map(([n, t]) => `<button data-go="${n}" class="${current === n ? "active" : ""} ${stepDone(n) ? "done" : ""}">${n ? n + ". " : ""}${t}</button>`).join("");
+  $("stepper").querySelectorAll("button").forEach(b => b.onclick = () => go(+b.dataset.go));
+}
+// 현재 단계 버튼이 보이도록 단계 표시줄만 가로로 스크롤 (페이지 전체는 움직이지 않게)
+function centerStepper(){ const bar = $("stepper"), a = bar.querySelector(".active"); if (a) bar.scrollLeft = a.offsetLeft - bar.clientWidth / 2 + a.clientWidth / 2; }
+function go(n){
+  if (n > 0 && !S.code) { alert("먼저 내 번호를 고르고 '시작하기'를 눌러 주세요."); n = 0; }  // 번호 없이 진행 금지
+  stopStream();   // 단계를 옮기면 카메라는 끈다
+  current = n;
+  document.querySelectorAll(".step").forEach(s => s.classList.toggle("active", s.dataset.step === String(n)));
+  $("prevBtn").disabled = n === 0; $("nextBtn").disabled = n === 7;
+  if (n === 2 && !$("ytFrame").src) $("ytFrame").src = `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?rel=0&playsinline=1`;
+  if (n === 4) renderDebug();
+  if (n === 5) renderPlan();
+  renderStepper(); centerStepper();
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+$("prevBtn").onclick = () => go(Math.max(0, current - 1));
+$("nextBtn").onclick = () => go(Math.min(7, current + 1));
+
+/* =========================================================
+   6. 0단계: 번호 고르기 (이름을 쓰지 않도록 01~24 버튼만 제공)
+   ========================================================= */
+$("codeGrid").innerHTML = Array.from({ length:STUDENT_COUNT }, (_, i) => String(i + 1).padStart(2, "0")).map(c => `<button type="button" data-code="${c}">${c}</button>`).join("");
+$("codeGrid").addEventListener("click", e => {
+  const b = e.target.closest("[data-code]"); if (!b) return;
+  pickedCode = b.dataset.code;
+  $("codeGrid").querySelectorAll("button").forEach(x => x.classList.toggle("selected", x === b));
+  $("startBtn").disabled = false; $("startBtn").textContent = `${pickedCode}번으로 시작하기 →`;
+});
+$("startBtn").onclick = () => {
+  if (!pickedCode) return;
+  if (S.code && S.code !== pickedCode && !confirm(`번호를 ${S.code}번에서 ${pickedCode}번으로 바꿀까요?`)) return;
+  S.code = pickedCode;
+  $("whoLine").textContent = `탐정 번호 ${S.code}번`;
+  go(1);
+};
+
+/* =========================================================
+   7. 1·7단계: 학습지 그리기·제출·CSV
+   ========================================================= */
+const surveyItems = phase => phase === "pre" ? [...PRE_EXTRA, ...CORE] : [...CORE, ...POST_EXTRA];
+function renderSurvey(phase){
+  const st = S[phase], box = $(phase + "Questions"), lock = st.submitted, dis = lock ? "disabled" : "";
+  let prevArea = "", html = "";
+  surveyItems(phase).forEach((q, i) => {
+    // 영역이 바뀔 때마다 소제목 (CT·DBG·TM은 한 묶음)
+    const group = ["CT","DBG","TM"].includes(q.area) ? "CT" : q.area;
+    if (group !== prevArea) { html += `<div class="sec">${AREA[group]}</div>`; prevArea = group; }
+    let body;
+    if (q.type === "likert") {
+      // 0~5 수직선: 점을 눌러 고른다
+      body = `<div class="scale"><div class="line"></div>${[0,1,2,3,4,5].map(v => `<button type="button" ${dis} class="pt ${st.answers[q.id] === v ? "selected" : ""}" data-q="${q.id}" data-v="${v}" aria-label="${v}점"><i></i><span>${v}</span></button>`).join("")}</div><div class="scale-ends"><span>전혀 그렇지 않아요</span><span>매우 그래요</span></div>`;
+    } else if (q.type === "text") {
+      body = `<textarea data-q="${q.id}" maxlength="300" ${dis} placeholder="예: 먼저 틀린 사진을 모으고, 공통점을 찾아요.">${esc(st.answers[q.id] || "")}</textarea>`;
+    } else {
+      body = (q.fig ? `<div class="fig">${q.fig}</div>` : "") +
+        `<div class="opts">${Object.entries(q.options).map(([k, t]) => `<button type="button" ${dis} data-q="${q.id}" data-v="${k}" class="${st.answers[q.id] === k ? "selected" : ""}">${NUM[k]} ${esc(t)}</button>`).join("")}</div>` +
+        (q.reason ? `<textarea class="reason" data-q="${q.id}_이유" maxlength="300" ${dis} placeholder="왜 그렇게 생각했나요? (선택)">${esc(st.answers[q.id + "_이유"] || "")}</textarea>` : "");
+    }
+    html += `<div class="q" id="${phase}_${q.id}"><div class="qn">${i + 1}. ${esc(q.text)}</div>${body}</div>`;
+  });
+  box.innerHTML = html;
+  $(phase + "SubmitRow").classList.toggle("hidden", lock);
+  $(phase + "Done").classList.toggle("hidden", !lock);
+}
+function bindSurvey(phase){
+  const st = S[phase], box = $(phase + "Questions");
+  // 버튼을 누르면 답을 저장하고, 같은 문항의 다른 버튼은 선택 해제
+  box.addEventListener("click", e => {
+    const b = e.target.closest("button[data-q]"); if (!b || st.submitted) return;
+    const q = surveyItems(phase).find(x => x.id === b.dataset.q);
+    st.answers[q.id] = q.type === "likert" ? +b.dataset.v : b.dataset.v;
+    b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("selected", x === b));
+    $(phase + "_" + q.id).classList.remove("missing");
+    unsaved[phase] = true;
+  });
+  box.addEventListener("input", e => { if (e.target.dataset.q) { st.answers[e.target.dataset.q] = e.target.value; unsaved[phase] = true; } });
+  // 제출: 빠진 문항이 있으면 테두리 표시 + 그 문항으로 이동
+  $(phase + "Submit").onclick = () => {
+    const missing = surveyItems(phase).filter(q => !q.optional && (st.answers[q.id] === undefined || st.answers[q.id] === ""));
+    surveyItems(phase).forEach(q => $(phase + "_" + q.id).classList.toggle("missing", missing.includes(q)));
+    if (missing.length) { alert(`아직 답하지 않은 문항이 ${missing.length}개 있어요.`); $(phase + "_" + missing[0].id).scrollIntoView({ behavior:"smooth", block:"center" }); return; }
+    st.submitted = true; st.time = new Date().toISOString();
+    renderSurvey(phase); renderStepper();
+    $(phase + "Done").scrollIntoView({ behavior:"smooth", block:"center" });
+  };
+  $(phase + "Edit").onclick = () => { st.submitted = false; renderSurvey(phase); renderStepper(); };
+  $(phase + "Csv").onclick = () => { saveCsv(surveyCsv(phase), `${phase === "pre" ? "사전" : "사후"}학습지_${S.code}.csv`); unsaved[phase] = false; };
+  $(phase + "SubmitLink").href = SURVEY_SUBMIT_URL;
+}
+// 영역별 평균(0~5)과 문제 해결 점수(0~5) 계산
+function scores(a){
+  const avg = ids => (ids.reduce((s, id) => s + (a[id] || 0), 0) / ids.length).toFixed(2);
+  return { ct: avg(["Q1","Q2","Q3","Q4"]), dbg: avg(["Q5","Q6"]), tm: avg(["Q7","Q8"]),
+           self: avg(["Q1","Q2","Q3","Q4","Q5","Q6","Q7","Q8"]),
+           solve: PROBLEMS.filter(q => a[q.id] === q.answer).length };
+}
+// 학습지 한 명분 → CSV 한 줄 (열 이름이 사전·사후 같아서 교사용 도구에서 짝지을 수 있음)
+function surveyCsv(phase){
+  const st = S[phase], a = st.answers;
+  const head = ["학생코드","시점","제출시각"], row = [S.code, phase === "pre" ? "사전" : "사후", st.time];
+  surveyItems(phase).forEach(q => {
+    if (q.type === "likert") { head.push(`${q.id}_${q.key}`); row.push(a[q.id]); }
+    else if (q.type === "mc") {
+      head.push(`${q.id}_${q.key}_응답`, `${q.id}_${q.key}_점수`); row.push(NUM[a[q.id]] + " " + q.options[a[q.id]], a[q.id] === q.answer ? 1 : 0);
+      if (q.reason) { head.push(`${q.id}_${q.key}_이유`); row.push(a[q.id + "_이유"] || ""); }
+    }
+    else if (q.type === "choice") { head.push(`${q.id}_${q.key}`); row.push(q.options[a[q.id]] || ""); }
+    else { head.push(`${q.id}_${q.key}`); row.push(a[q.id] || ""); }
+  });
+  const sc = scores(a);
+  head.push("CT평균(Q1-4)","디버깅평균(Q5-6)","TM활용평균(Q7-8)","자기평가평균(Q1-8)","문제해결점수(S1-5)");
+  row.push(sc.ct, sc.dbg, sc.tm, sc.self, sc.solve);
+  return toCsv([head, row]);
+}
+
+/* =========================================================
+   8. 카메라 / 사진 선택 (3단계·5단계가 같이 사용)
+   ========================================================= */
+function stopStream(){
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  ["c3","c5"].forEach(p => { $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden"); $(p + "Capture").disabled = true; });
+}
+function setupCamera(p, fileId, onPhoto){
+  const video = $(p + "Video");
+  $(p + "Start").onclick = async () => {
+    try {
+      stopStream();
+      // 후면 카메라 우선, playsinline은 아이폰에서 화면이 멈추는 문제를 막는다
+      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
+      video.setAttribute("playsinline", ""); video.srcObject = stream;
+      video.classList.remove("hidden"); $(p + "Msg").classList.add("hidden"); $(p + "Capture").disabled = false;
+      await video.play();
+    } catch (e) { alert("카메라를 켤 수 없어요. 카메라 권한을 허용했는지 확인하거나 '사진 선택'을 이용해 주세요."); }
+  };
+  $(p + "Capture").onclick = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight)); };
+  $(p + "Choose").onclick = () => $(fileId).click();
+  $(fileId).onchange = e => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { alert("이미지 파일을 선택해 주세요."); return; }
+    const r = new FileReader();
+    r.onload = () => { const img = new Image(); img.onload = () => onPhoto(squareFrom(img, img.naturalWidth, img.naturalHeight)); img.src = r.result; };
+    r.readAsDataURL(f);
+  };
+}
+
+/* =========================================================
+   9. 3단계: AI 실험 (내 예측 → AI 판단 → 실제 정답)
+   ========================================================= */
+function status(t, err = false){ $("modelStatus").textContent = t; $("modelStatus").classList.toggle("err", err); }
+const BASE = TM_MODEL_URL.endsWith("/") ? TM_MODEL_URL : TM_MODEL_URL + "/";
+// 모델을 불러오고, 실패하면 원인을 단계별로 알려 준다
+async function loadModel(){
+  if (location.protocol === "file:") { status("파일을 더블클릭해서 열면 AI 모델을 불러올 수 없어요. 배포된 https 주소에서 열어 주세요.", true); return; }
+  if (typeof tmImage === "undefined") { status("AI 프로그램(라이브러리)을 내려받지 못했어요. 학교 인터넷에서 cdn.jsdelivr.net 접속이 막혔는지 확인해 주세요.", true); return; }
+  status("AI 모델을 불러오는 중...");
+  try {   // ① model.json 파일이 실제로 있는지 먼저 확인
+    const r = await fetch(BASE + "model.json", { cache:"no-store" }), t = await r.text();
+    if (!r.ok || !t.trim().startsWith("{")) { status(`AI 모델 파일(model.json)을 찾지 못했어요. 선생님: index.html과 같은 폴더에 model.json · metadata.json · weights.bin을 올렸는지 확인해 주세요. (주소: ${BASE}model.json)`, true); return; }
+  } catch (e) { status("AI 모델 주소에 연결하지 못했어요. 인터넷 연결이나 TM_MODEL_URL 주소를 확인해 주세요.", true); return; }
+  try {   // ② 실제로 불러오기
+    model = await tmImage.load(BASE + "model.json", BASE + "metadata.json");
+    status(`AI 모델 준비 완료 (배운 종류: ${model.getClassLabels().map(norm).join(", ")}). 사진을 찍고, AI의 답을 먼저 예측해 보세요.`);
+    updateAsk();
+  } catch (e) { console.error(e); status("model.json은 있지만 불러오다 실패했어요. metadata.json과 weights.bin이 같은 폴더에 있는지, 세 파일이 같은 내보내기에서 나온 것인지 확인해 주세요.", true); }
+}
+function updateAsk(){ $("s3Ask").disabled = !(model && cur3.photo && cur3.guess); }
+function resetTrial(){
+  cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null };
+  $("s3Flow").classList.add("hidden"); $("s3Result").classList.add("hidden"); updateAsk();
+}
+setupCamera("c3", "fileInput3", d => {
+  resetTrial(); cur3.photo = d;
+  $("s3Preview").src = d; $("s3Flow").classList.remove("hidden");
+  // 학생은 AI가 '잘 모르겠어요'라고 할 것도 예측할 수 있다
+  choiceButtons("s3Guess", v => { cur3.guess = v; updateAsk(); }, [...CLASSES, UNSURE]);
+  $("s3Flow").scrollIntoView({ behavior:"smooth", block:"start" });
+});
+$("s3Retake").onclick = resetTrial;
+$("s3Ask").onclick = () => {
+  if (!model || !cur3.photo || !cur3.guess) return;
+  $("s3Ask").disabled = true; status("AI가 사진을 살펴보고 있어요...");
+  const img = new Image();
+  img.onload = async () => {
+    try {
+      // 모델 입력 크기(224×224)로 맞춰서 전달
+      const c = document.createElement("canvas"); c.width = c.height = 224;
+      c.getContext("2d").drawImage(img, 0, 0, 224, 224);
+      const preds = (await model.predict(c)).map(p => ({ label:norm(p.className), probability:p.probability })).sort((a, b) => b.probability - a.probability);
+      cur3.preds = preds; cur3.conf = preds[0].probability;
+      // 확률이 기준값보다 낮으면 '잘 모르겠어요' (분류 모델은 항상 무언가로 답하기 때문)
+      cur3.aiLabel = cur3.conf < THRESHOLD ? UNSURE : preds[0].label;
+      $("s3Label").textContent = cur3.aiLabel;
+      // '잘 모르겠어요'일 때는 다시 찍는 방법을 함께 보여 준다
+      $("s3Unsure").classList.toggle("hidden", cur3.aiLabel !== UNSURE);
+      $("s3Bars").innerHTML = preds.map(p => `<div class="barrow"><span>${esc(p.label)}</span><div class="bar"><i style="width:${Math.round(p.probability * 100)}%"></i></div><b>${pct(p.probability)}</b></div>`).join("");
+      $("s3GuessCompare").textContent = cur3.aiLabel === UNSURE
+        ? `가장 높은 확률이 ${Math.round(THRESHOLD * 100)}%보다 낮아서 AI가 답하지 않았어요. ${cur3.guess === UNSURE ? "AI가 헷갈릴 거라고 정확히 예측했어요." : `(내 예측: ${cur3.guess})`}`
+        : (cur3.guess === cur3.aiLabel ? `AI의 답을 정확히 예측했어요. (내 예측: ${cur3.guess})` : `내 예측(${cur3.guess})과 AI의 답이 달라요.`);
+      choiceButtons("s3Actual", v => showFeedback(v));
+      $("s3Feedback").classList.add("hidden"); $("s3Save").disabled = true;
+      $("s3Result").classList.remove("hidden");
+      status("AI가 답했어요. 이제 실제 옷 종류를 골라 주세요.");
+      $("s3Result").scrollIntoView({ behavior:"smooth", block:"start" });
+    } catch (e) { console.error(e); status("분류에 실패했어요. 다른 사진으로 해 보세요.", true); }
+    updateAsk();
+  };
+  img.src = cur3.photo;
+};
+function showFeedback(actual){
+  cur3.actual = actual;
+  const ok = cur3.aiLabel === actual;
+  $("s3Feedback").className = "feedback " + (ok ? "ok" : "no");
+  $("s3Feedback").textContent = ok ? "AI가 맞혔어요."
+    : cur3.aiLabel === UNSURE ? "AI가 답하지 못했어요. 이 사진도 '틀린 사진 모음'에 들어가요. 4단계에서 왜 헷갈렸는지 추리해요."
+    : "AI가 틀렸어요. 이 사진은 '틀린 사진 모음'에 들어가요. 4단계에서 이유를 추리해요.";
+  $("s3Save").disabled = false;
+}
+$("s3Save").onclick = () => {
+  if (!cur3.photo || !cur3.preds || !cur3.actual) return;
+  const aiCorrect = cur3.aiLabel === cur3.actual;
+  // 틀린 사진 파일 이름: "실제옷 (번호) 학생번호.jpg"  예) 상의 (1) 01.jpg, 상의 (2) 01.jpg
+  let file = "";
+  if (!aiCorrect) { S.errCount[cur3.actual]++; file = `${cur3.actual} (${S.errCount[cur3.actual]}) ${S.code}.jpg`; }
+  S.trials.push({
+    id: S.trials.length + 1, time: new Date().toISOString(), image: cur3.photo, file,
+    guess: cur3.guess, aiLabel: cur3.aiLabel, conf: cur3.conf, preds: cur3.preds, actual: cur3.actual,
+    aiCorrect, guessCorrect: cur3.guess === cur3.aiLabel,
+    debug: { causes:[], why:"", howPhoto:"", fixes:[], fixText:"" }
+  });
+  unsaved.trials = true; if (!aiCorrect) unsaved.debug = true;
+  resetTrial(); renderTrials(); renderStepper();
+  status("저장했어요. 다음 사진을 찍어 보세요.");
+  window.scrollTo({ top:0, behavior:"smooth" });
+};
+const errors = () => S.trials.filter(t => !t.aiCorrect);
+function renderTrials(){
+  const err = errors(), n = S.trials.length;
+  $("sTotal").textContent = n; $("sAiOk").textContent = n - err.length; $("sAiErr").textContent = err.length;
+  const un = err.filter(t => t.aiLabel === UNSURE).length;
+  $("sAiErrLabel").textContent = un ? `AI가 틀림 (잘 모르겠어요 ${un})` : "AI가 틀림";
+  const g = S.trials.filter(t => t.guessCorrect).length;
+  $("sGuessRate").textContent = n ? `내가 AI의 답을 미리 맞힌 횟수: ${g} / ${n}` : "AI의 답을 예측한 기록이 아직 없어요.";
+  $("s3Gallery").innerHTML = err.length
+    ? err.map(t => `<div class="thumb"><img src="${t.image}" alt=""><div>${esc(t.file.replace(".jpg", ""))}<br>AI: ${esc(t.aiLabel)}</div></div>`).join("")
+    : '<p class="hint">AI가 틀린 사진이 여기에 모여요.</p>';
+}
+function trialsCsv(list){
+  const h = ["기록번호","시각","학생코드","파일이름","내예측(AI가 뭐라고 할지)","AI판단","AI최고확률","실제종류","AI정오","내예측정오","전체확률"];
+  return toCsv([h, ...list.map(t => [t.id, t.time, S.code, t.file, t.guess, t.aiLabel, pct(t.conf), t.actual, t.aiCorrect ? "정답" : "오류", t.guessCorrect ? "맞힘" : "못 맞힘", t.preds.map(p => p.label + ":" + pct(p.probability)).join("; ")])]);
+}
+// 틀린 사진만 ZIP 하나로 묶기 (파일 이름에 학생 번호가 들어가 친구 것과 겹치지 않음)
+$("s3Zip").onclick = async () => {
+  const err = errors(); if (!err.length) return alert("아직 AI가 틀린 사진이 없어요.");
+  const z = new JSZip();
+  err.forEach(t => z.file(`틀린사진_${S.code}/${t.file}`, b64(t.image), { base64:true }));
+  z.file(`틀린사진_${S.code}/기록_${S.code}.csv`, trialsCsv(err));
+  saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${S.code}.zip`);
+};
+$("s3Csv").onclick = () => { if (!S.trials.length) return alert("저장된 기록이 없어요."); saveCsv(trialsCsv(S.trials), `실험기록_${S.code}.csv`); unsaved.trials = false; };
+
+/* =========================================================
+   10. 4단계: 디버깅 (틀린 사진마다 원인·다시 찍을 사진·고치는 방법)
+   ========================================================= */
+function renderDebug(){
+  const err = errors(), box = $("s4List");
+  if (!err.length) { box.innerHTML = '<div class="notice">아직 AI가 틀린 사진이 없어요. 3단계에서 AI가 헷갈릴 만한 사진을 더 찍어 보세요.</div>'; updateDebugProgress(); return; }
+  const chips = (list, sel, f) => `<div class="chips">${list.map(t => `<label><input type="checkbox" data-f="${f}" value="${esc(t)}" ${sel.includes(t) ? "checked" : ""}>${esc(t)}</label>`).join("")}</div>`;
+  box.innerHTML = err.map(t => `
+    <div class="debugcard" data-id="${t.id}">
+      <img src="${t.image}" alt="AI가 틀린 사진">
+      <div>
+        <div class="tag">실제 ${esc(t.actual)} → AI ${esc(t.aiLabel)} (${pct(t.conf)})</div>
+        <div class="fname">${esc(t.file)}</div>
+        <label>① AI는 왜 틀렸을까? (여러 개 골라요)</label>
+        ${chips(CAUSES, t.debug.causes, "causes")}
+        <textarea data-f="why" maxlength="300" placeholder="내가 추리한 이유를 적어요. 예: 양말 무늬가 상의 줄무늬와 비슷해서">${esc(t.debug.why)}</textarea>
+        <label>② 그럼 어떤 사진을 찍어서 AI에게 알려 줘야 할까?</label>
+        <textarea data-f="howPhoto" maxlength="300" placeholder="예: 어두운 곳에서 양말을 펼쳐서 여러 장 찍어요">${esc(t.debug.howPhoto)}</textarea>
+        <label>③ 티처블 머신은 어떻게 고치면 좋을까?</label>
+        ${chips(FIXES, t.debug.fixes, "fixes")}
+        <textarea data-f="fixText" maxlength="300" placeholder="더 생각한 방법이 있으면 적어요 (선택)">${esc(t.debug.fixText)}</textarea>
+      </div>
+    </div>`).join("");
+  updateDebugProgress();
+}
+// 입력할 때마다 해당 사진의 debug 기록에 바로 저장
+function onDebugInput(e){
+  const card = e.target.closest(".debugcard"), f = e.target.dataset.f; if (!card || !f) return;
+  const t = S.trials.find(x => x.id === +card.dataset.id);
+  if (e.target.type === "checkbox") t.debug[f] = [...card.querySelectorAll(`input[data-f="${f}"]:checked`)].map(x => x.value);
+  else t.debug[f] = e.target.value;
+  unsaved.debug = true; updateDebugProgress();
+}
+$("s4List").addEventListener("input", onDebugInput);
+$("s4List").addEventListener("change", onDebugInput);
+function updateDebugProgress(){
+  const err = errors(), done = err.filter(t => t.debug.why.trim() && t.debug.howPhoto.trim()).length;
+  $("s4Bar").style.width = err.length ? (done / err.length * 100) + "%" : "0";
+  $("s4Count").textContent = err.length ? `틀린 사진 ${err.length}장 중 ${done}장 추리 완료 (①과 ②를 적으면 완료)` : "";
+  renderStepper();
+}
+function debugCsv(){
+  const h = ["기록번호","학생코드","파일이름","실제종류","AI판단","AI최고확률","오류원인(선택)","왜틀렸을까(서술)","어떤사진을찍을까","티처블머신수정(선택)","수정방법(서술)"];
+  return toCsv([h, ...errors().map(t => [t.id, S.code, t.file, t.actual, t.aiLabel, pct(t.conf), t.debug.causes.join("; "), t.debug.why, t.debug.howPhoto, t.debug.fixes.join("; "), t.debug.fixText])]);
+}
+$("s4Csv").onclick = () => { if (!errors().length) return alert("디버깅할 사진이 없어요."); saveCsv(debugCsv(), `디버깅기록_${S.code}.csv`); unsaved.debug = false; };
+$("s4Zip").onclick = async () => {
+  if (!errors().length) return alert("디버깅할 사진이 없어요.");
+  const z = new JSZip();
+  errors().forEach(t => z.file(`디버깅_${S.code}/${t.file}`, b64(t.image), { base64:true }));
+  z.file(`디버깅_${S.code}/디버깅기록_${S.code}.csv`, debugCsv());
+  saveBlob(await z.generateAsync({ type:"blob" }), `디버깅_${S.code}.zip`); unsaved.debug = false;
+};
+
+/* =========================================================
+   11. 5단계: 계획을 반영한 새 사진 모으기 (v2 학습용)
+   ========================================================= */
+function renderPlan(){
+  const err = errors(); if (!err.length) { $("s5Plan").textContent = "4단계 디버깅 계획이 아직 없어요. 그래도 AI가 헷갈릴 만한 상황을 생각하며 사진을 찍어 보세요."; return; }
+  const count = {}; err.forEach(t => t.debug.fixes.forEach(f => count[f] = (count[f] || 0) + 1));
+  const top = Object.entries(count).sort((a, b) => b[1] - a[1]);
+  const how = err.filter(t => t.debug.howPhoto.trim()).map(t => `<li>${esc(t.file.replace(".jpg", ""))}: ${esc(t.debug.howPhoto)}</li>`).join("");
+  $("s5Plan").innerHTML = `<b>내가 세운 디버깅 계획</b>${top.length ? `<ul>${top.map(([f, n]) => `<li>${esc(f)} (${n})</li>`).join("")}</ul>` : ""}${how ? `<b style="display:block;margin-top:6px">다시 찍을 사진</b><ul>${how}</ul>` : ""}`;
+}
+setupCamera("c5", "fileInput5", d => {
+  cur5 = { photo:d, label:null };
+  $("s5Preview").src = d; $("s5Form").classList.remove("hidden"); $("s5Memo").value = "";
+  $("s5Strats").innerHTML = STRATS.map(t => `<label><input type="checkbox" value="${esc(t)}">${esc(t)}</label>`).join("");
+  choiceButtons("s5Label", v => { cur5.label = v; $("s5Add").disabled = false; });
+  $("s5Add").disabled = true;
+  $("s5Form").scrollIntoView({ behavior:"smooth", block:"start" });
+});
+function closeForm5(){ cur5 = { photo:null, label:null }; $("s5Form").classList.add("hidden"); }
+$("s5Cancel").onclick = closeForm5;
+$("s5Add").onclick = () => {
+  if (!cur5.photo || !cur5.label) return;
+  S.newCount[cur5.label]++;
+  S.newPhotos.push({ id: Date.now(), time:new Date().toISOString(), label:cur5.label,
+    file: `${cur5.label} (${S.newCount[cur5.label]}) ${S.code}.jpg`,   // 예) 양말 (3) 01.jpg
+    strats:[...document.querySelectorAll("#s5Strats input:checked")].map(x => x.value), memo:$("s5Memo").value.trim(), image:cur5.photo });
+  unsaved.photos = true; closeForm5(); renderNewPhotos(); renderStepper();
+};
+function renderNewPhotos(){
+  CLASSES.forEach(c => $("n" + c).textContent = S.newPhotos.filter(p => p.label === c).length);
+  $("s5Gallery").innerHTML = S.newPhotos.length
+    ? S.newPhotos.map(p => `<div class="thumb"><img src="${p.image}" alt=""><button class="del" data-del="${p.id}" title="삭제">✕</button><div>${esc(p.file.replace(".jpg", ""))}</div></div>`).join("")
+    : '<p class="hint">추가한 사진이 여기에 모여요.</p>';
+}
+$("s5Gallery").addEventListener("click", e => { const b = e.target.closest("[data-del]"); if (b && confirm("이 사진을 지울까요?")) { S.newPhotos = S.newPhotos.filter(p => p.id !== +b.dataset.del); renderNewPhotos(); renderStepper(); } });
+// 옷 종류별 폴더로 나눠 ZIP (티처블 머신 클래스에 바로 올릴 수 있게)
+$("s5Zip").onclick = async () => {
+  if (!S.newPhotos.length) return alert("아직 추가한 사진이 없어요.");
+  const z = new JSZip(), rows = [["파일이름","학생코드","옷종류","바꾼점","설명"]];
+  S.newPhotos.forEach(p => { z.file(`새사진_${S.code}/${p.label}/${p.file}`, b64(p.image), { base64:true }); rows.push([p.file, S.code, p.label, p.strats.join("; "), p.memo]); });
+  z.file(`새사진_${S.code}/새사진기록_${S.code}.csv`, toCsv(rows));
+  saveBlob(await z.generateAsync({ type:"blob" }), `새사진_${S.code}.zip`); unsaved.photos = false;
+};
+
+/* =========================================================
+   12. 6단계: v2 앱 자리 (V2_APP_URL을 채우면 자동으로 버튼 표시)
+   ========================================================= */
+if (V2_APP_URL) {
+  $("v2Box").innerHTML = `<p class="hint">선생님이 고친 AI(v2)로 4단계에서 틀렸던 옷을 다시 찍어 보고, 내 디버깅이 효과가 있었는지 확인해요.</p>
+    <div class="actions"><a class="btn primary" href="${esc(V2_APP_URL)}" target="_blank" rel="noopener">고친 AI(v2) 열기</a></div>`;
+}
+
+/* =========================================================
+   13. 시작할 때 한 번 실행
+   ========================================================= */
+$("thLabel").textContent = Math.round(THRESHOLD * 100) + "%";
+$("s3Tips").innerHTML = UNSURE_TIPS.map(t => `<li>${esc(t)}</li>`).join("");
+$("ytLink").href = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
+["s3Padlet","s4Padlet","s5Padlet"].forEach(id => $(id).href = PADLET_URL);
+bindSurvey("pre"); bindSurvey("post"); renderSurvey("pre"); renderSurvey("post");
+renderTrials(); renderNewPhotos();
+go(0);
+loadModel();
+// 다운로드하지 않은 기록이 있으면 창을 닫기 전에 한 번 경고
+window.addEventListener("beforeunload", e => {
+  stopStream();
+  if (Object.values(unsaved).some(Boolean)) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+</body>
+</html>
