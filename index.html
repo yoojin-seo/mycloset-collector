@@ -45,9 +45,6 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .status{padding:10px 12px;border-radius:8px;background:var(--y3);font-size:13px;margin-top:10px}
 .status.err{background:#F3E6D8;color:var(--b);border:1px solid var(--b2)}
 /* 0단계 번호 고르기 */
-.codes{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px}
-.codes button{min-width:0;padding:12px 0;font-size:16px;background:#fff}
-.codes button.selected{background:var(--b);color:#fff;border-color:var(--b)}
 /* 카메라 */
 .camera{max-width:420px;aspect-ratio:4/3;margin:12px auto;background:#3B2A1C;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--y2);overflow:hidden;text-align:center;padding:10px;font-size:14px}
 .camera video{width:100%;height:100%;object-fit:cover}
@@ -106,7 +103,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
 .navbtns button{background:#fff}
 #fileInput3,#fileInput5{display:none}
 .footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
-@media(max-width:520px){body{padding:9px}.card{padding:13px}.chips{grid-template-columns:1fr}.debugcard{grid-template-columns:1fr}.debugcard img{max-width:200px}.codes{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:520px){body{padding:9px}.card{padding:13px}.chips{grid-template-columns:1fr}.debugcard{grid-template-columns:1fr}.debugcard img{max-width:200px}}
 </style>
 </head>
 <body>
@@ -121,13 +118,15 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
 <!-- 단계 표시줄: 버튼을 누르면 해당 단계로 이동 -->
 <nav class="stepper" id="stepper"></nav>
 
-<!-- ───────── 0. 시작: 번호 고르기 ───────── -->
+<!-- ───────── 0. 시작: 번호 적기 ───────── -->
 <section class="step" data-step="0">
   <div class="card">
     <h2>탐정 등록</h2>
-    <p class="hint">이 앱에는 이름을 쓰지 않아요. 선생님이 알려 준 <b>내 번호</b>를 눌러 주세요.</p>
-    <div class="codes" id="codeGrid"></div>
-    <div class="actions"><button class="primary" id="startBtn" disabled>번호를 골라 주세요</button></div>
+    <p class="hint">이 앱에는 이름을 쓰지 않아요. 선생님이 알려 준 <b>내 번호</b>를 숫자로 적어 주세요.<br>내가 내려받는 사진 파일 이름에 이 번호가 들어가요. (예: 1번 → 상의01(1).jpg)</p>
+    <label for="codeInput">내 번호</label>
+    <input id="codeInput" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="예: 1" style="max-width:180px;font-size:20px;text-align:center">
+    <p class="small" id="codePreview" style="margin:6px 0 0">숫자만 적을 수 있어요.</p>
+    <div class="actions"><button class="primary" id="startBtn" disabled>번호를 적어 주세요</button></div>
   </div>
   <div class="card">
     <h2>활동 순서</h2>
@@ -321,16 +320,41 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
       <button class="accent" id="s5Zip">새 사진 ZIP 다운로드</button>
       <a class="btn" id="s5Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
     </div>
-    <p class="small">ZIP 안에는 상의/하의/양말 폴더별로 사진이 나뉘어 있어요.</p>
+    <p class="small">ZIP 안에는 상의/하의/양말 폴더별로 사진이 나뉘어 있어요. (예: 상의01_새(1).jpg)</p>
   </div>
 </section>
 
-<!-- ───────── 6. 고친 AI 확인 (비워 둠) ───────── -->
+<!-- ───────── 6. 고친 AI(v2) 확인: v2 폴더에 모델이 올라오면 바로 작동 ───────── -->
 <section class="step" data-step="6">
   <div class="card">
     <h2>6단계 · 고친 AI(v2) 확인하기</h2>
-    <div id="v2Box">
-      <div class="notice">선생님이 여러분이 찍은 사진으로 AI를 고치고 있어요.<br>준비가 되면 이곳에서 내가 예측한 디버깅이 효과가 있었는지 확인할 수 있어요.</div>
+    <p class="hint">선생님이 여러분이 찍은 사진으로 AI를 고쳤어요(v2). 처음 AI(v1)가 틀렸던 사진을 v2에게 다시 보여 주고, 내 디버깅이 효과가 있었는지 확인해요.</p>
+    <div id="v2Status" class="status">고친 AI(v2)가 준비됐는지 확인하는 중...</div>
+    <div class="actions"><button id="v2Retry">v2가 준비됐는지 다시 확인</button></div>
+    <div id="v2Area" class="hidden">
+      <h3>① 사진 넣기</h3>
+      <div class="actions"><button id="v2Mine" class="accent">3단계에서 틀린 사진 다시 검사하기</button></div>
+      <div class="camera"><span id="c6Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c6Video" autoplay playsinline muted class="hidden"></video></div>
+      <div class="actions">
+        <button id="c6Start">카메라 켜기</button>
+        <button id="c6Capture" class="primary" disabled>사진 촬영</button>
+        <button id="c6Choose">사진 선택 (여러 장)</button>
+        <input id="fileInput6" type="file" accept="image/*" multiple class="hidden">
+      </div>
+      <p class="small">내려받아 둔 틀린 사진(예: 상의01(1).jpg)을 고르면 이름에서 실제 옷 종류를 알아서 읽어요.</p>
+      <h3>② 처음 AI(v1) → 고친 AI(v2)</h3>
+      <div class="stats">
+        <div class="stat"><b id="v2N">0</b><span>검사한 사진</span></div>
+        <div class="stat"><b id="v2Ok">0</b><span>v2가 맞힘</span></div>
+        <div class="stat"><b id="v2Better">0</b><span>v1은 틀렸는데 v2는 맞힘</span></div>
+      </div>
+      <div id="v2List"></div>
+      <label for="v2Reflect">4단계에서 생각한 고치는 방법이 효과가 있었나요? 왜 그렇게 생각하나요?</label>
+      <textarea id="v2Reflect" maxlength="500" placeholder="예: 어두운 곳 양말 사진을 넣었더니 v2는 양말이라고 맞혔어요. 그런데 구겨진 상의는 아직 틀려요."></textarea>
+      <div class="actions">
+        <button class="accent" id="v2Csv">v2 확인 기록 CSV</button>
+        <a class="btn" id="v2Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+      </div>
     </div>
   </div>
 </section>
@@ -372,10 +396,10 @@ const TM_MODEL_URL = "./";
 const TH_PARAM = parseFloat(new URLSearchParams(location.search).get("th"));
 const THRESHOLD = TH_PARAM >= 0 && TH_PARAM < 1 ? TH_PARAM : 0.65;
 const UNSURE_TIPS = ["옷을 화면 가운데에 크게 놓아요", "밝은 곳에서 찍어요", "무늬 없는 바닥이나 벽 앞에 놓고 찍어요"];
-const STUDENT_COUNT = 24;         // 0단계에 보여 줄 번호 개수 (01 ~ 24)
+const MAX_NUMBER = 99;            // 0단계에 적을 수 있는 가장 큰 번호 (반마다 인원이 달라도 쓸 수 있게)
 const PADLET_URL = "https://padlet.com/seoyj980130/5-3-s024awos31um54lu65da";  // 사진 ZIP 올리는 곳
 const SURVEY_SUBMIT_URL = PADLET_URL;  // 학습지 CSV 올리는 곳 (친구가 못 보게 하려면 별도 패들렛으로 교체)
-const V2_APP_URL = "";            // 6단계: v2 웹앱 주소를 나중에 넣는다 (비워 두면 '준비 중' 표시)
+const V2_MODEL_URL = "./v2/";     // 6단계: 고친 모델(v2) 위치. 배포 폴더 안 v2 폴더에 모델 파일 3개를 넣으면 바로 작동
 const VIDEO_ID = "XYnImGQuWbU";   // 2단계 학습 영상
 const CLASSES = ["상의", "하의", "양말"];
 const UNSURE = "잘 모르겠어요";
@@ -399,26 +423,52 @@ const LIKERT_ITEMS = [
 ].map(q => ({ ...q, type:"likert" }));
 
 // 직접 푸는 문제 (fig = 문제 속 그림, reason = 이유 쓰기 칸)
-const PROBLEMS = [
-  { id:"S1", key:"원인추론", answer:"a",
-    text:"어두운 방에서 찍은 양말 사진을 AI가 '상의'라고 했어요. 가장 먼저 확인할 것은 무엇일까요?",
-    options:{ a:"AI가 배운 사진 중에 어두운 곳에서 찍은 양말 사진이 있었는지", b:"태블릿이 고장 났는지", c:"같은 사진으로 AI에게 여러 번 다시 물어보기", d:"'양말' 클래스 이름을 '발'로 바꾸기" } },
-  { id:"S2", key:"데이터수집", answer:"b",
-    text:"옷을 더 잘 구분하는 AI를 만들려면 학습 사진을 어떻게 모으는 것이 가장 좋을까요?",
-    options:{ a:"같은 책상 위에서 같은 각도로 상의 사진만 100장 찍기", b:"배경·거리·각도·밝기를 바꿔 가며 세 종류 옷을 비슷한 수만큼 찍기", c:"AI가 헷갈리지 않게 사진 수를 줄이기", d:"인터넷에서 아무 옷 사진이나 많이 내려받기" } },
-  { id:"S3", key:"블록코드디버깅", answer:"a", reason:true,
-    text:"로봇이 한 변이 100인 정사각형을 그리도록 아래처럼 코딩했어요. 그런데 'ㄷ' 모양만 그려졌어요. 어느 부분을 고쳐야 할까요?",
-    fig:`<div class="blk">시작하기를 클릭했을 때</div><div class="blk">펜 내리기</div><div class="blk loop">3 번 반복하기<div class="blk">100 만큼 움직이기</div><div class="blk">90 도 돌기</div></div>`,
-    options:{ a:"'3 번 반복하기'를 '4 번 반복하기'로 바꾼다", b:"'100 만큼 움직이기'를 '200 만큼 움직이기'로 바꾼다", c:"'90 도 돌기'를 '45 도 돌기'로 바꾼다", d:"'펜 내리기'를 지운다" } },
-  { id:"S4", key:"배경편향찾기", answer:"a", reason:true,
-    text:"지우는 아래처럼 사진을 모아 옷 분류 AI를 만들었어요. 그런데 흰 침대 위에 놓은 양말을 보여 주자 AI가 '상의'라고 했어요. 가장 큰 원인은 무엇일까요?",
-    fig:`<table><tr><th>클래스</th><th>사진 수</th><th>찍은 장소</th></tr><tr><td>상의</td><td>50장</td><td>모두 흰 침대 위</td></tr><tr><td>하의</td><td>50장</td><td>모두 나무 바닥</td></tr><tr><td>양말</td><td>50장</td><td>모두 나무 바닥</td></tr></table>`,
-    options:{ a:"AI가 옷 모양보다 '흰 침대' 배경을 보고 상의라고 배웠다", b:"양말 사진 수가 상의보다 적었다", c:"클래스 순서에서 상의가 맨 위에 있었다", d:"사진이 컬러여서 AI가 헷갈렸다" } },
-  { id:"S5", key:"한가지씩바꿔확인", answer:"a", reason:true,
-    text:"민수는 'AI가 양말을 틀린 건 사진이 어두워서야'라고 생각했어요. 이 생각이 맞는지 확인하는 가장 좋은 방법은 무엇일까요?",
-    options:{ a:"같은 양말을 같은 자리에서 밝게 한 번, 어둡게 한 번 찍어 AI 결과를 비교한다", b:"여러 옷을 여러 장소에서 아무렇게나 많이 찍어 본다", c:"모델을 지우고 처음부터 다시 만든다", d:"AI가 맞힐 때까지 같은 사진을 계속 보여 준다" } }
-].map(q => ({ ...q, type:"mc", area:"SOLVE" }));
-const CORE = [...LIKERT_ITEMS, ...PROBLEMS];
+// 사전·사후는 같은 능력을 묻는 '쌍둥이 문제'다. 상황·숫자·정답 위치만 바꿔서 외워서 맞히지 못하게 했다.
+// 문항 번호(S1~S5)와 CSV 열 이름은 같아서 교사용 도구에서 짝지어 비교할 수 있다.
+const SQUARE = n => `<div class="blk">시작하기를 클릭했을 때</div><div class="blk">펜 내리기</div><div class="blk loop">${n.rep} 번 반복하기<div class="blk">${n.len} 만큼 움직이기</div><div class="blk">${n.deg} 도 돌기</div></div>`;
+const PLACE = rows => `<table><tr><th>클래스</th><th>사진 수</th><th>찍은 장소</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</table>`;
+const PROBLEMS = {
+  pre: [
+    { id:"S1", key:"원인추론", answer:"b",
+      text:"어두운 방에서 찍은 양말 사진을 AI가 '상의'라고 했어요. 가장 먼저 확인할 것은 무엇일까요?",
+      options:{ a:"태블릿이 고장 났는지", b:"AI가 배운 사진 중에 어두운 곳에서 찍은 양말 사진이 있었는지", c:"같은 사진으로 AI에게 여러 번 다시 물어보기", d:"'양말' 클래스 이름을 '발'로 바꾸기" } },
+    { id:"S2", key:"데이터수집", answer:"c",
+      text:"옷을 더 잘 구분하는 AI를 만들려면 학습 사진을 어떻게 모으는 것이 가장 좋을까요?",
+      options:{ a:"같은 책상 위에서 같은 각도로 상의 사진만 100장 찍기", b:"AI가 헷갈리지 않게 사진 수를 줄이기", c:"배경·거리·각도·밝기를 바꿔 가며 세 종류 옷을 비슷한 수만큼 찍기", d:"인터넷에서 아무 옷 사진이나 많이 내려받기" } },
+    { id:"S3", key:"블록코드디버깅", answer:"d", reason:true,
+      text:"로봇이 한 변이 100인 정사각형을 그리도록 아래처럼 코딩했어요. 그런데 'ㄷ' 모양만 그려졌어요. 어느 부분을 고쳐야 할까요?",
+      fig:SQUARE({ rep:3, len:100, deg:90 }),
+      options:{ a:"'100 만큼 움직이기'를 '200 만큼 움직이기'로 바꾼다", b:"'90 도 돌기'를 '45 도 돌기'로 바꾼다", c:"'펜 내리기'를 지운다", d:"'3 번 반복하기'를 '4 번 반복하기'로 바꾼다" } },
+    { id:"S4", key:"배경편향찾기", answer:"b", reason:true,
+      text:"지우는 아래처럼 사진을 모아 옷 분류 AI를 만들었어요. 그런데 흰 침대 위에 놓은 양말을 보여 주자 AI가 '상의'라고 했어요. 가장 큰 원인은 무엇일까요?",
+      fig:PLACE([["상의","50장","모두 흰 침대 위"],["하의","50장","모두 나무 바닥"],["양말","50장","모두 나무 바닥"]]),
+      options:{ a:"양말 사진 수가 상의보다 적었다", b:"AI가 옷 모양보다 '흰 침대' 배경을 보고 상의라고 배웠다", c:"클래스 순서에서 상의가 맨 위에 있었다", d:"사진이 컬러여서 AI가 헷갈렸다" } },
+    { id:"S5", key:"한가지씩바꿔확인", answer:"c", reason:true,
+      text:"민수는 'AI가 양말을 틀린 건 사진이 어두워서야'라고 생각했어요. 이 생각이 맞는지 확인하는 가장 좋은 방법은 무엇일까요?",
+      options:{ a:"여러 옷을 여러 장소에서 아무렇게나 많이 찍어 본다", b:"모델을 지우고 처음부터 다시 만든다", c:"같은 양말을 같은 자리에서 밝게 한 번, 어둡게 한 번 찍어 AI 결과를 비교한다", d:"AI가 맞힐 때까지 같은 사진을 계속 보여 준다" } }
+  ],
+  post: [
+    { id:"S1", key:"원인추론", answer:"c",
+      text:"형광등 빛이 반사되어 반짝이는 하의 사진을 AI가 '양말'이라고 했어요. 가장 먼저 확인할 것은 무엇일까요?",
+      options:{ a:"같은 사진을 AI에게 계속 다시 보여 주기", b:"'하의' 클래스 이름을 '바지'로 바꾸기", c:"AI가 배운 하의 사진 중에 빛이 반사된 사진이 있었는지", d:"카메라를 새것으로 바꾸기" } },
+    { id:"S2", key:"데이터수집", answer:"a",
+      text:"양말을 더 잘 알아보는 AI를 만들려면 학습 사진을 어떻게 모으는 것이 가장 좋을까요?",
+      options:{ a:"양말을 펼치거나 뭉쳐 보고, 장소·밝기·거리를 바꿔 가며 세 종류 옷을 비슷한 수만큼 찍기", b:"양말 사진만 200장 더 넣기", c:"가장 잘 나온 양말 사진 1장을 여러 번 복사해 넣기", d:"모든 사진을 흑백으로 바꾸기" } },
+    { id:"S3", key:"블록코드디버깅", answer:"b", reason:true,
+      text:"로봇이 한 변이 50인 정삼각형을 그리도록 아래처럼 코딩했어요. 그런데 변이 두 개만 그려졌어요. 어느 부분을 고쳐야 할까요?",
+      fig:SQUARE({ rep:2, len:50, deg:120 }),
+      options:{ a:"'120 도 돌기'를 '60 도 돌기'로 바꾼다", b:"'2 번 반복하기'를 '3 번 반복하기'로 바꾼다", c:"'50 만큼 움직이기'를 '100 만큼 움직이기'로 바꾼다", d:"'시작하기를 클릭했을 때'를 지운다" } },
+    { id:"S4", key:"배경편향찾기", answer:"d", reason:true,
+      text:"도윤이는 아래처럼 사진을 모아 옷 분류 AI를 만들었어요. 그런데 체크무늬 이불 위에 놓은 상의를 보여 주자 AI가 '하의'라고 했어요. 가장 큰 원인은 무엇일까요?",
+      fig:PLACE([["상의","40장","모두 책상 위"],["하의","40장","모두 체크무늬 이불 위"],["양말","40장","모두 책상 위"]]),
+      options:{ a:"하의 사진 수가 너무 많았다", b:"사진 크기가 서로 달랐다", c:"클래스 이름이 모두 두 글자였다", d:"AI가 옷 모양보다 '체크무늬 이불' 배경을 보고 하의라고 배웠다" } },
+    { id:"S5", key:"한가지씩바꿔확인", answer:"b", reason:true,
+      text:"서연이는 'AI가 상의를 틀린 건 옷이 구겨져서야'라고 생각했어요. 이 생각이 맞는지 확인하는 가장 좋은 방법은 무엇일까요?",
+      options:{ a:"새 옷을 사서 다시 찍는다", b:"같은 상의를 같은 자리·같은 밝기에서 펴서 한 번, 구겨서 한 번 찍어 AI 결과를 비교한다", c:"친구들에게 투표로 물어본다", d:"구겨진 사진을 모두 지운다" } }
+  ]
+};
+Object.values(PROBLEMS).forEach(list => list.forEach(q => { q.type = "mc"; q.area = "SOLVE"; }));
+const coreOf = phase => [...LIKERT_ITEMS, ...PROBLEMS[phase]];
 
 const PRE_EXTRA = [
   { id:"B1", key:"코딩경험", area:"BG", type:"choice", text:"블록 코딩(엔트리, 스크래치 등)이나 코딩을 해 본 적이 있나요?",
@@ -451,8 +501,8 @@ const S = {
   errCount: { 상의:0, 하의:0, 양말:0 },  // 틀린 사진 번호 매기기용 (옷 종류별)
   newCount: { 상의:0, 하의:0, 양말:0 }   // 새 사진 번호 매기기용 (지워도 번호가 겹치지 않게 계속 증가)
 };
-const unsaved = { pre:false, post:false, trials:false, debug:false, photos:false };  // 아직 다운로드 안 한 기록
-let current = 0, model = null, stream = null, pickedCode = "";
+const unsaved = { pre:false, post:false, trials:false, debug:false, photos:false, v2:false };  // 아직 다운로드 안 한 기록
+let current = 0, model = null, stream = null;
 let cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null };
 let cur5 = { photo:null, label:null };
 
@@ -500,6 +550,7 @@ function stepDone(n){
   if (n === 3) return S.trials.length > 0;
   if (n === 4) { const e = errors(); return e.length > 0 && e.every(t => t.debug.why.trim() && t.debug.howPhoto.trim()); }
   if (n === 5) return S.newPhotos.length > 0;
+  if (n === 6) return V2.some(i => i.v2);
   if (n === 7) return S.post.submitted;
   return false;
 }
@@ -510,7 +561,7 @@ function renderStepper(){
 // 현재 단계 버튼이 보이도록 단계 표시줄만 가로로 스크롤 (페이지 전체는 움직이지 않게)
 function centerStepper(){ const bar = $("stepper"), a = bar.querySelector(".active"); if (a) bar.scrollLeft = a.offsetLeft - bar.clientWidth / 2 + a.clientWidth / 2; }
 function go(n){
-  if (n > 0 && !S.code) { alert("먼저 내 번호를 고르고 '시작하기'를 눌러 주세요."); n = 0; }  // 번호 없이 진행 금지
+  if (n > 0 && !S.code) { alert("먼저 내 번호를 적고 '시작하기'를 눌러 주세요."); n = 0; }  // 번호 없이 진행 금지
   stopStream();   // 단계를 옮기면 카메라는 끈다
   current = n;
   document.querySelectorAll(".step").forEach(s => s.classList.toggle("active", s.dataset.step === String(n)));
@@ -518,6 +569,7 @@ function go(n){
   if (n === 2 && !$("ytFrame").src) $("ytFrame").src = `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?rel=0&playsinline=1`;
   if (n === 4) renderDebug();
   if (n === 5) renderPlan();
+  if (n === 6 && !modelV2) loadV2();   // 6단계에 올 때마다 v2가 올라왔는지 확인
   renderStepper(); centerStepper();
   window.scrollTo({ top:0, behavior:"smooth" });
 }
@@ -525,19 +577,23 @@ $("prevBtn").onclick = () => go(Math.max(0, current - 1));
 $("nextBtn").onclick = () => go(Math.min(7, current + 1));
 
 /* =========================================================
-   6. 0단계: 번호 고르기 (이름을 쓰지 않도록 01~24 버튼만 제공)
+   6. 0단계: 번호 적기
+   - 숫자만 입력되게 해서 이름을 쓸 수 없게 한다
+   - 1 → "01"처럼 두 자리로 맞춰 파일 이름(상의01(1).jpg)에 쓴다
    ========================================================= */
-$("codeGrid").innerHTML = Array.from({ length:STUDENT_COUNT }, (_, i) => String(i + 1).padStart(2, "0")).map(c => `<button type="button" data-code="${c}">${c}</button>`).join("");
-$("codeGrid").addEventListener("click", e => {
-  const b = e.target.closest("[data-code]"); if (!b) return;
-  pickedCode = b.dataset.code;
-  $("codeGrid").querySelectorAll("button").forEach(x => x.classList.toggle("selected", x === b));
-  $("startBtn").disabled = false; $("startBtn").textContent = `${pickedCode}번으로 시작하기 →`;
+const toCode = v => { const n = parseInt(v, 10); return n >= 1 && n <= MAX_NUMBER ? String(n).padStart(2, "0") : ""; };
+$("codeInput").addEventListener("input", e => {
+  e.target.value = e.target.value.replace(/[^0-9]/g, "");   // 숫자가 아닌 글자(한글 이름 등)는 바로 지움
+  const c = toCode(e.target.value);
+  $("startBtn").disabled = !c;
+  $("startBtn").textContent = c ? `${c}번으로 시작하기 →` : "번호를 적어 주세요";
+  $("codePreview").textContent = c ? `내 사진 파일 이름 예: 상의${c}(1).jpg` : (e.target.value ? `1부터 ${MAX_NUMBER}까지의 번호를 적어 주세요.` : "숫자만 적을 수 있어요.");
 });
+$("codeInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("startBtn").disabled) $("startBtn").click(); });
 $("startBtn").onclick = () => {
-  if (!pickedCode) return;
-  if (S.code && S.code !== pickedCode && !confirm(`번호를 ${S.code}번에서 ${pickedCode}번으로 바꿀까요?`)) return;
-  S.code = pickedCode;
+  const c = toCode($("codeInput").value); if (!c) return;
+  if (S.code && S.code !== c && !confirm(`번호를 ${S.code}번에서 ${c}번으로 바꿀까요? 이미 찍은 사진의 파일 이름은 그대로예요.`)) return;
+  S.code = c;
   $("whoLine").textContent = `탐정 번호 ${S.code}번`;
   go(1);
 };
@@ -545,7 +601,7 @@ $("startBtn").onclick = () => {
 /* =========================================================
    7. 1·7단계: 학습지 그리기·제출·CSV
    ========================================================= */
-const surveyItems = phase => phase === "pre" ? [...PRE_EXTRA, ...CORE] : [...CORE, ...POST_EXTRA];
+const surveyItems = phase => phase === "pre" ? [...PRE_EXTRA, ...coreOf("pre")] : [...coreOf("post"), ...POST_EXTRA];
 function renderSurvey(phase){
   const st = S[phase], box = $(phase + "Questions"), lock = st.submitted, dis = lock ? "disabled" : "";
   let prevArea = "", html = "";
@@ -596,11 +652,11 @@ function bindSurvey(phase){
   $(phase + "SubmitLink").href = SURVEY_SUBMIT_URL;
 }
 // 영역별 평균(0~5)과 문제 해결 점수(0~5) 계산
-function scores(a){
+function scores(a, phase){
   const avg = ids => (ids.reduce((s, id) => s + (a[id] || 0), 0) / ids.length).toFixed(2);
   return { ct: avg(["Q1","Q2","Q3","Q4"]), dbg: avg(["Q5","Q6"]), tm: avg(["Q7","Q8"]),
            self: avg(["Q1","Q2","Q3","Q4","Q5","Q6","Q7","Q8"]),
-           solve: PROBLEMS.filter(q => a[q.id] === q.answer).length };
+           solve: PROBLEMS[phase].filter(q => a[q.id] === q.answer).length };
 }
 // 학습지 한 명분 → CSV 한 줄 (열 이름이 사전·사후 같아서 교사용 도구에서 짝지을 수 있음)
 function surveyCsv(phase){
@@ -615,7 +671,7 @@ function surveyCsv(phase){
     else if (q.type === "choice") { head.push(`${q.id}_${q.key}`); row.push(q.options[a[q.id]] || ""); }
     else { head.push(`${q.id}_${q.key}`); row.push(a[q.id] || ""); }
   });
-  const sc = scores(a);
+  const sc = scores(a, phase);
   head.push("CT평균(Q1-4)","디버깅평균(Q5-6)","TM활용평균(Q7-8)","자기평가평균(Q1-8)","문제해결점수(S1-5)");
   row.push(sc.ct, sc.dbg, sc.tm, sc.self, sc.solve);
   return toCsv([head, row]);
@@ -627,7 +683,7 @@ function surveyCsv(phase){
 function stopStream(){
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
-  ["c3","c5"].forEach(p => { $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden"); $(p + "Capture").disabled = true; });
+  ["c3","c5","c6"].forEach(p => { $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden"); $(p + "Capture").disabled = true; });
 }
 function setupCamera(p, fileId, onPhoto){
   const video = $(p + "Video");
@@ -643,13 +699,15 @@ function setupCamera(p, fileId, onPhoto){
   };
   $(p + "Capture").onclick = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight)); };
   $(p + "Choose").onclick = () => $(fileId).click();
+  // 고른 사진마다 정사각형으로 맞춰 onPhoto(사진, 파일이름)에 넘긴다 (6단계는 여러 장 가능)
   $(fileId).onchange = e => {
-    const f = e.target.files[0]; e.target.value = "";
-    if (!f) return;
-    if (!f.type.startsWith("image/")) { alert("이미지 파일을 선택해 주세요."); return; }
-    const r = new FileReader();
-    r.onload = () => { const img = new Image(); img.onload = () => onPhoto(squareFrom(img, img.naturalWidth, img.naturalHeight)); img.src = r.result; };
-    r.readAsDataURL(f);
+    const files = [...e.target.files]; e.target.value = "";
+    files.forEach(f => {
+      if (!f.type.startsWith("image/")) { alert("이미지 파일을 선택해 주세요."); return; }
+      const r = new FileReader();
+      r.onload = () => { const img = new Image(); img.onload = () => onPhoto(squareFrom(img, img.naturalWidth, img.naturalHeight), f.name); img.src = r.result; };
+      r.readAsDataURL(f);
+    });
   };
 }
 
@@ -728,9 +786,11 @@ function showFeedback(actual){
 $("s3Save").onclick = () => {
   if (!cur3.photo || !cur3.preds || !cur3.actual) return;
   const aiCorrect = cur3.aiLabel === cur3.actual;
-  // 틀린 사진 파일 이름: "실제옷 (번호) 학생번호.jpg"  예) 상의 (1) 01.jpg, 상의 (2) 01.jpg
+  // 틀린 사진 파일 이름: 실제옷 + 학생번호 + (그 옷의 몇 번째 틀린 사진)
+  // 예) 1번 학생: 상의01(1).jpg, 상의01(2).jpg / 24번 학생: 상의24(1).jpg
+  // 맨 앞이 실제 옷 이름이라 eval.html에 그대로 넣어도 정답을 자동으로 읽는다
   let file = "";
-  if (!aiCorrect) { S.errCount[cur3.actual]++; file = `${cur3.actual} (${S.errCount[cur3.actual]}) ${S.code}.jpg`; }
+  if (!aiCorrect) { S.errCount[cur3.actual]++; file = `${cur3.actual}${S.code}(${S.errCount[cur3.actual]}).jpg`; }
   S.trials.push({
     id: S.trials.length + 1, time: new Date().toISOString(), image: cur3.photo, file,
     guess: cur3.guess, aiLabel: cur3.aiLabel, conf: cur3.conf, preds: cur3.preds, actual: cur3.actual,
@@ -762,7 +822,8 @@ function trialsCsv(list){
 $("s3Zip").onclick = async () => {
   const err = errors(); if (!err.length) return alert("아직 AI가 틀린 사진이 없어요.");
   const z = new JSZip();
-  err.forEach(t => z.file(`틀린사진_${S.code}/${t.file}`, b64(t.image), { base64:true }));
+  // 학생이 고른 실제 옷 종류별 폴더로 나눈다 → 폴더째 티처블 머신 클래스에 올릴 수 있다
+  err.forEach(t => z.file(`틀린사진_${S.code}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
   z.file(`틀린사진_${S.code}/기록_${S.code}.csv`, trialsCsv(err));
   saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${S.code}.zip`);
 };
@@ -817,7 +878,7 @@ $("s4Csv").onclick = () => { if (!errors().length) return alert("디버깅할 �
 $("s4Zip").onclick = async () => {
   if (!errors().length) return alert("디버깅할 사진이 없어요.");
   const z = new JSZip();
-  errors().forEach(t => z.file(`디버깅_${S.code}/${t.file}`, b64(t.image), { base64:true }));
+  errors().forEach(t => z.file(`디버깅_${S.code}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
   z.file(`디버깅_${S.code}/디버깅기록_${S.code}.csv`, debugCsv());
   saveBlob(await z.generateAsync({ type:"blob" }), `디버깅_${S.code}.zip`); unsaved.debug = false;
 };
@@ -846,7 +907,7 @@ $("s5Add").onclick = () => {
   if (!cur5.photo || !cur5.label) return;
   S.newCount[cur5.label]++;
   S.newPhotos.push({ id: Date.now(), time:new Date().toISOString(), label:cur5.label,
-    file: `${cur5.label} (${S.newCount[cur5.label]}) ${S.code}.jpg`,   // 예) 양말 (3) 01.jpg
+    file: `${cur5.label}${S.code}_새(${S.newCount[cur5.label]}).jpg`,   // 예) 양말01_새(3).jpg (틀린 사진과 이름이 겹치지 않게 '_새')
     strats:[...document.querySelectorAll("#s5Strats input:checked")].map(x => x.value), memo:$("s5Memo").value.trim(), image:cur5.photo });
   unsaved.photos = true; closeForm5(); renderNewPhotos(); renderStepper();
 };
@@ -867,12 +928,80 @@ $("s5Zip").onclick = async () => {
 };
 
 /* =========================================================
-   12. 6단계: v2 앱 자리 (V2_APP_URL을 채우면 자동으로 버튼 표시)
+   12. 6단계: 고친 AI(v2) 확인
+   - 선생님이 배포 폴더의 v2/ 안에 모델 파일 3개를 올리면 그때부터 작동 (주소를 바꿀 필요 없음)
+   - 같은 사진을 v1(처음 모델)과 v2(고친 모델)에 모두 보여 주고 비교
    ========================================================= */
-if (V2_APP_URL) {
-  $("v2Box").innerHTML = `<p class="hint">선생님이 고친 AI(v2)로 4단계에서 틀렸던 옷을 다시 찍어 보고, 내 디버깅이 효과가 있었는지 확인해요.</p>
-    <div class="actions"><a class="btn primary" href="${esc(V2_APP_URL)}" target="_blank" rel="noopener">고친 AI(v2) 열기</a></div>`;
+let modelV2 = null; const V2 = [];
+const V2BASE = V2_MODEL_URL.endsWith("/") ? V2_MODEL_URL : V2_MODEL_URL + "/";
+function v2Status(t, err = false){ $("v2Status").textContent = t; $("v2Status").classList.toggle("err", err); }
+async function loadV2(){
+  if (typeof tmImage === "undefined") return v2Status("AI 프로그램(라이브러리)을 내려받지 못했어요. 인터넷 연결을 확인해 주세요.", true);
+  v2Status("고친 AI(v2)가 준비됐는지 확인하는 중...");
+  try {   // v2/model.json이 올라왔는지 먼저 확인 (없으면 아직 준비 전)
+    const r = await fetch(V2BASE + "model.json", { cache:"no-store" }), t = await r.text();
+    if (!r.ok || !t.trim().startsWith("{")) return v2Status("선생님이 아직 고친 AI(v2)를 올리지 않았어요. 준비되면 '다시 확인'을 눌러 주세요.");
+    modelV2 = await tmImage.load(V2BASE + "model.json", V2BASE + "metadata.json");
+    v2Status("고친 AI(v2) 준비 완료! 틀렸던 사진을 다시 보여 주세요.");
+    $("v2Area").classList.remove("hidden");
+  } catch (e) { console.error(e); v2Status("v2를 불러오지 못했어요. 선생님께 알려 주세요. (v2 폴더의 세 파일 확인)", true); }
 }
+$("v2Retry").onclick = loadV2;
+// 사진 한 장을 모델에 보여 주고 { label, conf } 를 돌려준다 (학생 앱과 같은 기준값 적용)
+async function judge(m, dataUrl){
+  const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = dataUrl; });
+  const c = document.createElement("canvas"); c.width = c.height = 224; c.getContext("2d").drawImage(img, 0, 0, 224, 224);
+  const p = (await m.predict(c)).map(x => ({ label:norm(x.className), probability:x.probability })).sort((a, b) => b.probability - a.probability)[0];
+  return { label: p.probability < THRESHOLD ? UNSURE : p.label, conf: p.probability };
+}
+const labelFromName = n => { const m = String(n || "").normalize("NFC").match(/^(상의|하의|양말)/); return m ? m[1] : null; };
+async function addV2(image, name, actual, v1, key){
+  if (key && V2.some(x => x.key === key)) return;   // 같은 사진을 두 번 넣지 않기
+  const it = { id: V2.length + 1, key, image, name: name || `사진${V2.length + 1}`, actual, v1, v2:null };
+  V2.push(it); renderV2();
+  if (!it.v1 && model) it.v1 = await judge(model, image);
+  if (modelV2) it.v2 = await judge(modelV2, image);
+  unsaved.v2 = true; renderV2(); renderStepper();
+}
+$("v2Mine").onclick = () => {
+  const err = errors(); if (!err.length) return alert("이 기기에 남아 있는 3단계 틀린 사진이 없어요. 내려받아 둔 사진을 '사진 선택'으로 넣어 주세요.");
+  err.forEach(t => addV2(t.image, t.file, t.actual, { label:t.aiLabel, conf:t.conf }, "t" + t.id));
+};
+setupCamera("c6", "fileInput6", (d, name) => addV2(d, name, labelFromName(name), null, name ? "f" + name : null));
+function verdict(it){
+  if (!it.actual || !it.v2) return "";
+  const ok1 = it.v1 && it.v1.label === it.actual, ok2 = it.v2.label === it.actual;
+  if (!ok1 && ok2) return "좋아졌어요! v1은 틀렸는데 v2는 맞혔어요.";
+  if (ok1 && ok2) return "v1도 v2도 맞혔어요.";
+  if (ok1 && !ok2) return "v2가 오히려 틀렸어요. 왜 그럴까요?";
+  return "아직 틀려요. 다른 원인이 있을지 생각해 봐요.";
+}
+function renderV2(){
+  const done = V2.filter(i => i.actual && i.v2);
+  $("v2N").textContent = done.length;
+  $("v2Ok").textContent = done.filter(i => i.v2.label === i.actual).length;
+  $("v2Better").textContent = done.filter(i => i.v2.label === i.actual && !(i.v1 && i.v1.label === i.actual)).length;
+  const show = r => r ? `${esc(r.label)} (${pct(r.conf)})` : "판정 중...";
+  $("v2List").innerHTML = V2.map(i => `
+    <div class="debugcard" data-v2="${i.id}">
+      <img src="${i.image}" alt="">
+      <div>
+        <div class="fname">${esc(i.name)}</div>
+        ${i.actual ? `<div class="tag">실제: ${esc(i.actual)}</div>` : `<label>실제 옷은 무엇인가요?</label><div class="choice">${CLASSES.map(c => `<button type="button" data-act="${c}">${c}</button>`).join("")}</div>`}
+        <table style="margin-top:8px"><tr><th>처음 AI (v1)</th><th>고친 AI (v2)</th></tr><tr><td>${show(i.v1)}</td><td>${show(i.v2)}</td></tr></table>
+        ${verdict(i) ? `<div class="feedback ${verdict(i).startsWith("좋아") || verdict(i).startsWith("v1도") ? "ok" : "no"}">${verdict(i)}</div>` : ""}
+      </div>
+    </div>`).join("");
+}
+$("v2List").addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b) return;
+  const it = V2.find(x => x.id === +b.closest("[data-v2]").dataset.v2); it.actual = b.dataset.act; unsaved.v2 = true; renderV2(); });
+$("v2Csv").onclick = () => {
+  if (!V2.length) return alert("아직 검사한 사진이 없어요.");
+  const rows = [["파일이름","학생코드","실제종류","v1판단","v1확률","v2판단","v2확률","결과"],
+    ...V2.map(i => [i.name, S.code, i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", verdict(i)]),
+    [], ["나의 생각", $("v2Reflect").value.trim()]];
+  saveCsv(toCsv(rows), `v2확인_${S.code}.csv`); unsaved.v2 = false;
+};
 
 /* =========================================================
    13. 시작할 때 한 번 실행
@@ -880,7 +1009,7 @@ if (V2_APP_URL) {
 $("thLabel").textContent = Math.round(THRESHOLD * 100) + "%";
 $("s3Tips").innerHTML = UNSURE_TIPS.map(t => `<li>${esc(t)}</li>`).join("");
 $("ytLink").href = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
-["s3Padlet","s4Padlet","s5Padlet"].forEach(id => $(id).href = PADLET_URL);
+["s3Padlet","s4Padlet","s5Padlet","v2Padlet"].forEach(id => $(id).href = PADLET_URL);
 bindSurvey("pre"); bindSurvey("post"); renderSurvey("pre"); renderSurvey("post");
 renderTrials(); renderNewPhotos();
 go(0);

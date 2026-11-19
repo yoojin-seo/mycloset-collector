@@ -21,7 +21,7 @@ body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font-family:sys
 .head nav{margin-left:auto;display:flex;gap:6px}
 .head nav a{font-size:12px;color:var(--b);text-decoration:none;border:1px solid var(--line);padding:5px 9px;border-radius:7px}
 .modelbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:13px;background:var(--y3);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.modelbar input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:7px;font:inherit;width:120px}
+.modelbar .ver{padding:7px 12px}
 .modelbar .msg{flex-basis:100%;color:var(--muted)}
 .modelbar .msg.err{color:var(--b);font-weight:700}
 /* 네 칸 */
@@ -56,7 +56,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}th,td{bo
 tr.pick td{background:var(--y2);font-weight:700}
 /* ④ 틀린 사진 */
 .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;max-height:430px;overflow:auto}
-.thumb{border:2px solid var(--b2);border-radius:8px;overflow:hidden;font-size:11px;background:#fff;text-align:center}
+.thumb{cursor:pointer;border:2px solid var(--b2);border-radius:8px;overflow:hidden;font-size:11px;background:#fff;text-align:center}
 .thumb img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
 .thumb div{padding:4px;word-break:break-all;line-height:1.35}.thumb b{color:var(--b)}
 .hidden{display:none!important}
@@ -70,15 +70,15 @@ tr.pick td{background:var(--y2);font-weight:700}
 <header class="head">
   <h1>교사용 평가 화면</h1>
   <span class="sub" id="subTitle">AI 옷장 탐정 · 모델 v1</span>
-  <nav><a href="teacher.html">학습지 결과</a><a href="./">학생용 앱</a></nav>
+  <nav><a href="occlude.html">가리기 실험기</a><a href="teacher.html">학습지 결과</a><a href="./">학생용 앱</a></nav>
 </header>
+<!-- 평가할 모델 고르기: v1 = 배포 폴더 맨 위 모델, v2 = 배포 폴더 안 v2 폴더 모델 -->
 <div class="modelbar">
-  <b>모델</b>
-  <span>이름</span><input type="text" id="mName" value="v1">
-  <span>위치</span><input type="text" id="mUrl" value="./">
-  <button id="mUrlBtn">이 위치에서 불러오기</button>
-  <label class="filebtn">파일 3개로 불러오기<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
-  <span class="msg" id="mStatus">같은 폴더의 모델(./)을 불러오는 중...</span>
+  <b>평가할 모델</b>
+  <button data-ver="v1" class="ver primary">v1 (처음 모델)</button>
+  <button data-ver="v2" class="ver">v2 (고친 모델)</button>
+  <label class="filebtn" title="학생들에게 공개하기 전에 v2를 미리 평가할 때">배포 전 미리 평가 (파일 3개)<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
+  <span class="msg" id="mStatus">v1 모델을 불러오는 중...</span>
 </div>
 
 <div class="grid">
@@ -96,11 +96,6 @@ tr.pick td{background:var(--y2);font-weight:700}
     <p class="small" style="margin:0">파일 이름 규칙: <b>클래스 (번호) 학생번호.jpg</b> (예: 상의 (1) 01.jpg)<br>또는 상의_01.jpg, 상의/ 폴더 안 사진도 가능</p>
     <div class="progress"><i id="bar"></i></div>
     <p style="margin:12px 0 0">전체 정확도 <span class="big" id="kAcc">-</span> <span class="small" id="kAccSub"></span></p>
-    <div class="mode">
-      <b>판정 방식</b>
-      <label><input type="radio" name="mode" value="top" checked> 가장 높은 확률의 클래스 (7주차 방식)</label>
-      <label><input type="radio" name="mode" value="th"> 기준값 <input type="number" id="th" value="0.65" min="0" max="0.99" step="0.05"> 미만은 '잘 모르겠어요' (학생 앱과 같게)</label>
-    </div>
     <p class="small" style="margin:8px 0 0">그 모델을 학습시킬 때 쓴 사진은 넣지 마세요.</p>
   </section>
 
@@ -128,6 +123,7 @@ tr.pick td{background:var(--y2);font-weight:700}
     <h2><span class="no">4</span><span id="wrongTitle">틀린 사진</span></h2>
     <div class="row" style="margin-bottom:8px"><button id="showAll" class="hidden">틀린 사진 전체 보기</button><button id="zipBtn" disabled>틀린 사진 ZIP</button></div>
     <div id="gallery" class="thumbs"><p class="hint">AI가 틀린 사진이 '실제 → 예측'과 확률로 모여요.</p></div>
+    <p class="small" style="margin:8px 0 0">사진을 누르면 <b>가리기 실험기(히트맵)</b>가 새 탭에서 열려 AI가 사진의 어디를 보고 그렇게 판정했는지 볼 수 있어요.</p>
   </section>
 </div>
 </main>
@@ -138,7 +134,7 @@ tr.pick td{background:var(--y2);font-weight:700}
    ========================================================= */
 const CLASSES = ["상의", "하의", "양말"], UNSURE = "잘 모르겠어요";
 const $ = id => document.getElementById(id);
-let model = null, modelKey = 0, mode = "top", th = 0.65, filter = null, busy = false;
+let model = null, modelKey = 0, modelName = "v1", filter = null, busy = false;
 let items = [];   // 테스트 사진 한 장 = { path, name, actual, blob, url, probs, key }
 
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -156,27 +152,30 @@ function mStatus(t, err = false){ $("mStatus").textContent = t; $("mStatus").cla
 /* =========================================================
    모델 불러오기: 처음엔 같은 폴더(./), v2는 위치나 파일로 바꿔 끼움
    ========================================================= */
-function onModel(where){
-  modelKey++;   // 모델이 바뀌면 모든 사진을 새 모델로 다시 판정
-  $("subTitle").textContent = `AI 옷장 탐정 · 모델 ${$("mName").value || "-"}`;
-  mStatus(`불러오기 완료 (${where}) · 클래스: ${model.getClassLabels().map(norm).join(", ")}`);
-  predictAll();
+// 모델 위치: v1은 배포 폴더 맨 위(./), v2는 배포 폴더 안의 v2 폴더(./v2/)
+const MODEL_DIR = { v1:"./", v2:"./v2/" };
+function onModel(name){
+  modelName = name; modelKey++;   // 모델이 바뀌면 모든 사진을 새 모델로 다시 판정
+  $("subTitle").textContent = `AI 옷장 탐정 · 모델 ${name}`;
+  document.querySelectorAll(".ver").forEach(b => b.classList.toggle("primary", b.dataset.ver === name));
+  mStatus(`${name} 불러오기 완료 · 클래스: ${model.getClassLabels().map(norm).join(", ")}`);
+  filter = null; predictAll();
 }
-async function loadByUrl(){
+async function loadVersion(ver){
   if (typeof tmImage === "undefined") return mStatus("티처블 머신 라이브러리를 내려받지 못했어요. 인터넷(cdn.jsdelivr.net) 연결을 확인해 주세요.", true);
-  if (location.protocol === "file:") return mStatus("파일을 더블클릭해서 열면 모델을 불러올 수 없어요. 배포 주소 뒤에 /eval.html 로 열거나 '파일 3개로 불러오기'를 쓰세요.", true);
-  let u = $("mUrl").value.trim() || "./"; if (!u.endsWith("/")) u += "/";
-  mStatus("불러오는 중...");
-  try { model = await tmImage.load(u + "model.json", u + "metadata.json"); onModel(u); }
-  catch (e) { console.error(e); mStatus(`${u} 에서 모델을 불러오지 못했어요. model.json · metadata.json · weights.bin 이 그 위치에 있는지 확인해 주세요.`, true); }
+  if (location.protocol === "file:") return mStatus("파일을 더블클릭해서 열면 모델을 불러올 수 없어요. 배포 주소 뒤에 /eval.html 로 열어 주세요.", true);
+  const dir = MODEL_DIR[ver]; mStatus(`${ver} 불러오는 중...`);
+  try { model = await tmImage.load(dir + "model.json", dir + "metadata.json"); onModel(ver); }
+  catch (e) { console.error(e); mStatus(ver === "v2" ? "v2 모델이 아직 없어요. 배포 폴더 안에 v2 폴더를 만들고 모델 파일 3개를 넣어 주세요." : "v1 모델을 불러오지 못했어요. eval.html과 같은 위치에 model.json · metadata.json · weights.bin이 있는지 확인해 주세요.", true); }
 }
-$("mUrlBtn").onclick = loadByUrl;
+document.querySelectorAll(".ver").forEach(b => b.onclick = () => loadVersion(b.dataset.ver));
+// 배포하기 전에 v2를 미리 평가: 내려받은 파일 3개를 직접 선택
 $("mFiles").onchange = async e => {
   const f = [...e.target.files]; e.target.value = "";
   const meta = f.find(x => /metadata.*\.json$/i.test(x.name)), weights = f.find(x => /\.bin$/i.test(x.name)), mj = f.find(x => /\.json$/i.test(x.name) && x !== meta);
   if (!meta || !weights || !mj) return mStatus("model.json, metadata.json, weights.bin 세 파일을 함께 선택해 주세요.", true);
   mStatus("불러오는 중...");
-  try { model = await tmImage.loadFromFiles(mj, weights, meta); onModel("파일"); }
+  try { model = await tmImage.loadFromFiles(mj, weights, meta); onModel("미리보기"); }
   catch (err) { console.error(err); mStatus("파일로 불러오지 못했어요. 세 파일이 같은 내보내기에서 나온 것인지, weights.bin 이름을 바꾸지 않았는지 확인해 주세요.", true); }
 };
 
@@ -267,11 +266,12 @@ async function predictAll(){
    결과 계산: 판정 방식에 따라 예측 라벨 결정 → 혼동행렬
    ========================================================= */
 const judged = () => items.filter(i => i.actual && i.probs && i.key === modelKey);
-const predOf = (it, t = mode === "th" ? th : 0) => it.probs[0].probability < t ? UNSURE : it.probs[0].label;
+// 7주차 방식: 가장 높은 확률의 클래스를 판정으로 쓴다 ('잘 모르겠어요'는 학생 앱에서만)
+const predOf = it => it.probs[0].label;
 function calc(){
   const list = judged(), extra = new Set();
   list.forEach(i => { const p = predOf(i); if (!CLASSES.includes(p) && p !== UNSURE) extra.add(p); });
-  const cols = [...CLASSES, ...extra, ...(mode === "th" ? [UNSURE] : [])], M = {};
+  const cols = [...CLASSES, ...extra], M = {};
   CLASSES.forEach(a => { M[a] = {}; cols.forEach(c => M[a][c] = 0); });
   list.forEach(i => M[i.actual][predOf(i)]++);
   const per = CLASSES.map(a => ({ cls:a, n:cols.reduce((s, c) => s + M[a][c], 0), ok:M[a][a] }));
@@ -304,8 +304,6 @@ function render(){
 $("cm").addEventListener("click", e => { const td = e.target.closest("td.cell"); if (!td) return;
   filter = filter && filter.a === td.dataset.a && filter.p === td.dataset.p ? null : { a:td.dataset.a, p:td.dataset.p }; render(); });
 $("showAll").onclick = () => { filter = null; render(); };
-document.querySelectorAll("input[name=mode]").forEach(r => r.onchange = () => { mode = r.value; filter = null; render(); });
-$("th").oninput = () => { const v = parseFloat($("th").value); if (v >= 0 && v < 1) { th = v; if (mode === "th") render(); } };
 $("goal").oninput = () => renderThTable(judged());
 
 /* ② 아래 '기준값 정하기 표': 기준값을 0.50~0.95로 바꿔 가며 답한 사진과 정확도 계산 (11주차 표와 같은 열) */
@@ -329,7 +327,7 @@ function renderGallery(r){
   const wrongN = r.list.filter(i => predOf(i) !== i.actual).length;
   $("wrongTitle").textContent = filter ? `실제 ${filter.a} → 예측 ${filter.p} (${list.length}장)` : `틀린 사진 (${wrongN}장)`;
   $("showAll").classList.toggle("hidden", !filter); $("zipBtn").disabled = !wrongN;
-  $("gallery").innerHTML = list.length ? list.map(i => `<div class="thumb"><img src="${i.url}" alt="" loading="lazy"><div><b>${esc(i.actual)} → ${esc(predOf(i))}</b><br>${i.probs[0].probability.toFixed(2)}<br>${esc(i.name)}</div></div>`).join("")
+  $("gallery").innerHTML = list.length ? list.map(i => `<div class="thumb" data-item="${items.indexOf(i)}" title="눌러서 히트맵 보기"><img src="${i.url}" alt="" loading="lazy"><div><b>${esc(i.actual)} → ${esc(predOf(i))}</b><br>${i.probs[0].probability.toFixed(2)}<br>${esc(i.name)}</div></div>`).join("")
     : `<p class="hint">${r.n ? "해당하는 사진이 없어요." : "AI가 틀린 사진이 '실제 → 예측'과 확률로 모여요."}</p>`;
 }
 
@@ -341,19 +339,33 @@ $("csvBtn").onclick = () => {
   const rows = [["파일이름","경로","실제","예측","최고확률","정오", ...labels.map(l => l + "_확률")],
     ...r.list.map(i => [i.name, i.path, i.actual, predOf(i), i.probs[0].probability.toFixed(3), predOf(i) === i.actual ? "정답" : "오답",
       ...labels.map(l => { const p = i.probs.find(x => x.label === l); return p ? p.probability.toFixed(3) : ""; })]),
-    [], ["판정 방식", mode === "th" ? `기준값 ${th}` : "가장 높은 확률"], ["전체 정확도", pct(r.ok, r.n), `${r.ok}/${r.n}`],
+    [], ["모델", modelName], ["전체 정확도", pct(r.ok, r.n), `${r.ok}/${r.n}`],
     ...r.per.map(p => [p.cls + " 정분류율", pct(p.ok, p.n), `${p.ok}/${p.n}`])];
-  saveBlob(new Blob([toCsv(rows)], { type:"text/csv;charset=utf-8" }), `result_${$("mName").value || "model"}.csv`);
+  saveBlob(new Blob([toCsv(rows)], { type:"text/csv;charset=utf-8" }), `result_${modelName}.csv`);
 };
 $("zipBtn").onclick = async () => {
   const wrong = calc().list.filter(i => predOf(i) !== i.actual); if (!wrong.length) return;
   const z = new JSZip(), used = new Set();
   wrong.forEach(i => { let n = `실제${i.actual}_예측${predOf(i)}/${i.name}`; while (used.has(n)) n = n.replace(/(\.\w+)$/, "_1$1"); used.add(n); z.file(n, i.blob); });
-  saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${$("mName").value || "model"}.zip`);
+  saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${modelName}.zip`);
 };
 
-// 처음 열면 같은 폴더의 모델을 자동으로 불러온다
-loadByUrl();
+/* ④의 사진을 누르면 가리기 실험기(occlude.html)를 새 탭으로 열고 그 사진을 넘겨 준다
+   (사진은 서버로 가지 않고 같은 브라우저의 두 탭 사이에서만 전달) */
+$("gallery").addEventListener("click", e => {
+  const t = e.target.closest("[data-item]"); if (!t) return;
+  const it = items[+t.dataset.item], r = new FileReader();
+  r.onload = () => {
+    const w = window.open(`occlude.html?model=${modelName === "v2" ? "v2" : "v1"}`, "_blank");
+    const msg = { type:"occlude-image", dataUrl:r.result, name:it.name, actual:it.actual };
+    const onReady = ev => { if (ev.source === w && ev.data && ev.data.type === "occlude-ready") { w.postMessage(msg, location.origin); window.removeEventListener("message", onReady); } };
+    window.addEventListener("message", onReady);
+  };
+  r.readAsDataURL(it.blob);
+});
+
+// 처음 열면 v1 모델을 자동으로 불러온다
+loadVersion("v1");
 </script>
 </body>
 </html>

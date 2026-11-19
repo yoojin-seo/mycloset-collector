@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>가리기 실험기 (히트맵) | AI 옷장 탐정</title>
+<!-- 학생용 앱과 같은 버전 (티처블 머신 내보내기 화면 기준) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+<style>
+:root{--bg:#FBF5E6;--y:#F2C14E;--y2:#FCE9B2;--y3:#FFF8E1;--b:#6B4423;--b2:#9A6B42;--ink:#3B2A1C;--muted:#8B7762;--line:#EADCBC}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
+.wrap{max-width:1100px;margin:auto}
+.head{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.head h1{margin:0;font-size:20px;color:var(--b)}.head .sub{color:var(--muted);font-size:13px}
+.head nav{margin-left:auto;display:flex;gap:6px}.head nav a{font-size:12px;color:var(--b);text-decoration:none;border:1px solid var(--line);padding:5px 9px;border-radius:7px}
+.grid{display:grid;grid-template-columns:5fr 6fr;gap:14px;margin-top:14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px}
+.panel h2{font-size:16px;margin:0 0 12px;color:var(--b)}
+.hint,.small{color:var(--muted);font-size:13px}
+label.l{display:block;font-size:13px;font-weight:700;margin:10px 0 4px}
+select,input[type=text]{padding:7px 8px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fff;color:var(--ink)}
+button,.filebtn{border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;background:var(--y3);color:var(--b);font-size:14px;font-family:inherit;display:inline-block}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--b);color:#fff;border-color:var(--b)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{padding:9px 12px;border-radius:8px;background:var(--y3);font-size:13px;margin-top:10px}.status.err{background:#F3E6D8;border:1px solid var(--b2)}
+.orig{margin-top:12px;font-size:14px}.orig b{font-size:26px;color:var(--b)}
+#photo{display:block;width:100%;max-width:260px;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--line);margin-top:10px;background:var(--y3)}
+#heat{width:100%;max-width:520px;aspect-ratio:1;display:block;margin:auto;border-radius:8px;background:var(--y3)}
+.progress{height:6px;background:var(--y2);border-radius:6px;overflow:hidden;margin-top:8px}.progress i{display:block;height:100%;width:0;background:var(--b)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}th,td{border:1px solid var(--line);padding:6px;text-align:center}th{background:var(--y3)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}.form input,.form select{width:100%}
+.hidden{display:none!important}
+@media(max-width:860px){.grid{grid-template-columns:1fr}.form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="head">
+  <h1>가리기 실험기</h1>
+  <span class="sub">사진의 한 칸씩을 회색으로 가리면서 고른 클래스의 확률이 얼마나 떨어지는지 봅니다. 많이 떨어지는 칸이 모델이 판정의 근거로 삼는 곳입니다.</span>
+  <nav><a href="eval.html">평가 화면</a><a href="teacher.html">학습지 결과</a></nav>
+</header>
+
+<div class="grid">
+  <!-- 1. 모델과 사진 -->
+  <section class="panel">
+    <h2>1. 모델과 사진</h2>
+    <div class="row">
+      <button data-ver="v1" class="ver">v1 모델</button>
+      <button data-ver="v2" class="ver">v2 모델</button>
+      <label class="filebtn">파일 3개로<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
+    </div>
+    <div id="mStatus" class="status">모델을 불러오는 중...</div>
+
+    <label class="l">사진 고르기 (한 장)</label>
+    <label class="filebtn">사진 선택<input type="file" id="pFile" accept="image/*" class="hidden"></label>
+    <span class="small" id="pName">평가 화면 ④에서 사진을 누르면 여기로 바로 들어와요.</span>
+    <img id="photo" alt="">
+
+    <div class="row" style="margin-top:10px">
+      <div><label class="l">볼 클래스 (예측한 클래스로 맞춰짐)</label><select id="cls"></select></div>
+      <div><label class="l">격자</label><select id="grid"><option>6</option><option>8</option></select></div>
+      <div><label class="l">가림 칸 크기 (격자 칸의 배수)</label><select id="mult"><option value="1">1</option><option value="2">2</option></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="run" disabled>실행</button>
+      <button id="csv" disabled>CSV 내려받기</button>
+      <button id="png" disabled>히트맵 그림 저장</button>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="orig" id="orig"></div>
+    <p class="small" style="margin-top:10px">틀린 사진은 볼 클래스를 <b>모델이 예측한 클래스</b> 그대로 두고 실행하세요. '무엇을 보고 그렇게 판정했는지'를 묻는 것입니다. 정답 클래스로 바꿔 돌리면 정답 근거의 위치가 나오며, 정답 확률이 원래 낮으면 히트맵이 비는 것이 정상입니다.<br>가린 색은 회색(128)입니다. 격자 6이면 36번 예측하므로 몇 초 걸릴 수 있어요. 사진은 브라우저 안에서만 처리됩니다.</p>
+  </section>
+
+  <!-- 2. 히트맵 -->
+  <section class="panel">
+    <h2>2. 히트맵 (칸마다 확률이 떨어진 양)</h2>
+    <canvas id="heat" width="560" height="560"></canvas>
+    <p class="small">색이 진할수록 그 칸을 가렸을 때 고른 클래스의 확률이 많이 떨어진 것입니다. 숫자는 원본 확률에서 뺀 값이고, 음수(가렸더니 오히려 올라감)는 0으로 칠합니다.</p>
+    <div id="summary"></div>
+  </section>
+</div>
+
+<!-- 3. 칸별 확률 표 + 분석표 -->
+<section class="panel" style="margin-top:14px">
+  <h2>3. 대표 오류 분석표</h2>
+  <div class="form">
+    <div><label class="l">사진</label><input type="text" id="fPhoto" readonly></div>
+    <div><label class="l">정답 → 예측 (본 클래스)</label><div class="row"><select id="fActual"><option value="">정답 선택</option><option>상의</option><option>하의</option><option>양말</option></select><span id="fPred" class="small"></span></div></div>
+    <div><label class="l">가장 떨어진 칸</label><input type="text" id="fCells" readonly></div>
+    <div><label class="l">그 자리에 있는 것 (눈으로 본 사실)</label><input type="text" id="fWhat" placeholder="예: 옷 옆의 체크무늬 이불"></div>
+    <div><label class="l">모양</label><select id="fShape"><option value="">선택</option><option>물체</option><option>배경</option><option>전체</option></select></div>
+    <div><label class="l">가설 ('~일 수 있음')</label><input type="text" id="fHyp" placeholder="예: 체크무늬를 하의 특징으로 배웠을 수 있음"></div>
+    <div style="grid-column:1/-1"><label class="l">확인 방법 (바꿀 조건과 다시 볼 사진)</label><input type="text" id="fCheck" placeholder="예: 체크무늬 이불 위 상의·양말 사진을 넣어 v2로 다시 평가"></div>
+  </div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="addRow" disabled>분석표에 한 줄 추가</button><button id="tableCsv" disabled>분석표 CSV</button></div>
+  <div id="table"></div>
+  <details style="margin-top:12px"><summary class="small" style="cursor:pointer">칸별 확률 표 보기</summary><div id="cells"></div></details>
+</section>
+</main>
+
+<script>
+/* =========================================================
+   상태와 도우미
+   ========================================================= */
+const CLASSES = ["상의", "하의", "양말"], GRAY = "rgb(128,128,128)";   // 가리는 색: 회색(128)
+const MODEL_DIR = { v1:"./", v2:"./v2/" };
+const $ = id => document.getElementById(id);
+let model = null, modelName = "", photoUrl = null, photoName = "", base = null, result = null;
+const rows = [];   // 분석표
+
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toCsv(r){ return "﻿" + r.map(x => x.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n"); }
+function saveBlob(blob, name){ const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }
+function norm(s){ const x = String(s).replace(/\s/g, "").toLowerCase();
+  if (x.includes("상의") || x.includes("top") || x.includes("shirt")) return "상의";
+  if (x.includes("하의") || x.includes("bottom") || x.includes("pants")) return "하의";
+  if (x.includes("양말") || x.includes("sock")) return "양말";
+  return String(s).trim(); }
+const labelFromName = n => { const m = String(n || "").normalize("NFC").match(/(상의|하의|양말)/); return m ? m[1] : ""; };
+function mStatus(t, err = false){ $("mStatus").textContent = t; $("mStatus").classList.toggle("err", err); }
+const ready = () => { $("run").disabled = !(model && base); };
+
+/* =========================================================
+   모델 불러오기 (v1 = ./ , v2 = ./v2/ , 또는 파일 3개)
+   ========================================================= */
+function onModel(name){
+  modelName = name;
+  document.querySelectorAll(".ver").forEach(b => b.classList.toggle("primary", b.dataset.ver === name));
+  const labels = model.getClassLabels().map(norm);
+  $("cls").innerHTML = labels.map(l => `<option>${esc(l)}</option>`).join("");
+  mStatus(`${name} 불러오기 완료 · 클래스: ${labels.join(", ")}`);
+  if (base) showOriginal(true);
+  ready();
+}
+async function loadVersion(ver){
+  if (typeof tmImage === "undefined") return mStatus("티처블 머신 라이브러리를 내려받지 못했어요. 인터넷 연결을 확인해 주세요.", true);
+  mStatus(`${ver} 불러오는 중...`);
+  try { model = await tmImage.load(MODEL_DIR[ver] + "model.json", MODEL_DIR[ver] + "metadata.json"); onModel(ver); }
+  catch (e) { console.error(e); mStatus(`${ver} 모델을 불러오지 못했어요. ${MODEL_DIR[ver]} 위치에 모델 파일 3개가 있는지 확인해 주세요.`, true); }
+}
+document.querySelectorAll(".ver").forEach(b => b.onclick = () => loadVersion(b.dataset.ver));
+$("mFiles").onchange = async e => {
+  const f = [...e.target.files]; e.target.value = "";
+  const meta = f.find(x => /metadata.*\.json$/i.test(x.name)), weights = f.find(x => /\.bin$/i.test(x.name)), mj = f.find(x => /\.json$/i.test(x.name) && x !== meta);
+  if (!meta || !weights || !mj) return mStatus("model.json, metadata.json, weights.bin 세 파일을 함께 선택해 주세요.", true);
+  try { model = await tmImage.loadFromFiles(mj, weights, meta); onModel("파일"); } catch (err) { console.error(err); mStatus("파일로 불러오지 못했어요.", true); }
+};
+
+/* =========================================================
+   사진: 가운데 정사각형을 잘라 224×224로 맞춘다 (학생 앱·평가 화면과 같은 방식)
+   ========================================================= */
+function setPhoto(url, name, actual){
+  photoName = name || "사진"; $("pName").textContent = photoName; $("photo").src = url;
+  const img = new Image();
+  img.onload = () => {
+    const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
+    base = document.createElement("canvas"); base.width = base.height = 224;
+    base.getContext("2d").drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 224, 224);
+    result = null; drawHeat(); $("summary").innerHTML = ""; $("cells").innerHTML = "";
+    $("csv").disabled = $("png").disabled = $("addRow").disabled = true;
+    $("fPhoto").value = photoName; $("fActual").value = actual || labelFromName(photoName); $("fCells").value = "";
+    if (model) showOriginal(true);
+    ready();
+  };
+  img.src = url;
+}
+$("pFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; const r = new FileReader(); r.onload = () => setPhoto(r.result, f.name); r.readAsDataURL(f); };
+
+// 모델에 보여 주고 클래스별 확률을 { 상의:0.8, ... } 로 돌려준다
+async function probsOf(canvas){ const o = {}; (await model.predict(canvas)).forEach(p => o[norm(p.className)] = p.probability); return o; }
+// 원본 확률 표시. setClass=true면 볼 클래스를 모델이 예측한 클래스로 맞춘다
+async function showOriginal(setClass){
+  const p = await probsOf(base), top = Object.entries(p).sort((a, b) => b[1] - a[1])[0];
+  if (setClass) $("cls").value = top[0];
+  const c = $("cls").value;
+  $("orig").innerHTML = `원본 확률 <b>${(p[c] || 0).toFixed(2)}</b> <span class="small">(본 클래스 ${esc(c)} · 모델 판정 ${esc(top[0])} ${top[1].toFixed(2)})</span>`;
+  $("fPred").textContent = `→ ${top[0]} ${top[1].toFixed(2)} (본 클래스 ${c})`;
+  return p;
+}
+$("cls").onchange = () => { if (base && model) showOriginal(false); };
+
+/* =========================================================
+   가리기 실험: 격자 칸마다 회색으로 가린 그림을 만들어 예측 → 떨어진 양 = 원본 확률 − 가린 확률
+   (Zeiler & Fergus, 2014의 occlusion sensitivity 방법)
+   ========================================================= */
+$("run").onclick = async () => {
+  const g = +$("grid").value, mult = +$("mult").value, cls = $("cls").value, cell = 224 / g, size = cell * mult;
+  $("run").disabled = true;
+  const orig = (await probsOf(base))[cls] || 0, cells = [];
+  const work = document.createElement("canvas"); work.width = work.height = 224; const wx = work.getContext("2d");
+  for (let r = 0; r < g; r++) for (let c = 0; c < g; c++) {
+    wx.drawImage(base, 0, 0);                                     // 원본을 다시 그리고
+    const cx = (c + 0.5) * cell, cy = (r + 0.5) * cell;            // 그 칸 가운데를 중심으로
+    wx.fillStyle = GRAY; wx.fillRect(cx - size / 2, cy - size / 2, size, size);   // 회색 정사각형으로 가림
+    const p = await probsOf(work);
+    cells.push({ r:r + 1, c:c + 1, p, after:p[cls] || 0, drop:orig - (p[cls] || 0) });
+    $("bar").style.width = (cells.length / (g * g) * 100) + "%";
+    if (cells.length % 6 === 0) await new Promise(res => setTimeout(res));
+  }
+  result = { g, mult, cls, orig, cells };
+  drawHeat(); summarize(); ready();
+  $("csv").disabled = $("png").disabled = $("addRow").disabled = false;
+};
+
+/* 히트맵 그리기: 사진 위에 칸마다 떨어진 양만큼 진하게 칠하고 숫자를 적는다 */
+function drawHeat(){
+  const cv = $("heat"), x = cv.getContext("2d"), W = cv.width;
+  x.clearRect(0, 0, W, W);
+  if (!base) return;
+  x.drawImage(base, 0, 0, W, W);
+  if (!result) return;
+  const step = W / result.g;
+  result.cells.forEach(k => {
+    const a = Math.max(0, Math.min(1, k.drop / Math.max(result.orig, 0.01)));   // 원본 확률 대비 떨어진 비율
+    x.fillStyle = `rgba(178,52,24,${(a * 0.75).toFixed(3)})`;
+    x.fillRect((k.c - 1) * step, (k.r - 1) * step, step, step);
+    x.strokeStyle = "rgba(255,255,255,.55)"; x.strokeRect((k.c - 1) * step, (k.r - 1) * step, step, step);
+    x.font = `bold ${Math.round(step / 4.2)}px system-ui`; x.textAlign = "center"; x.textBaseline = "middle";
+    x.lineWidth = 3; x.strokeStyle = "rgba(0,0,0,.55)"; x.strokeText(k.drop.toFixed(2), (k.c - .5) * step, (k.r - .5) * step);
+    x.fillStyle = "#fff"; x.fillText(k.drop.toFixed(2), (k.c - .5) * step, (k.r - .5) * step); x.lineWidth = 1;
+  });
+}
+
+/* 가장 많이 떨어진 칸 3개와 요약, 칸별 확률 표 */
+function summarize(){
+  const top = [...result.cells].sort((a, b) => b.drop - a.drop).slice(0, 3), max = top[0].drop;
+  const txt = top.map(k => `${k.r}행 ${k.c}열 −${Math.max(0, k.drop).toFixed(2)}`).join(", ");
+  $("fCells").value = top.slice(0, 2).map(k => `${k.r}행 ${k.c}열 −${Math.max(0, k.drop).toFixed(2)}`).join(" / ");
+  $("summary").innerHTML = `<table><tr><th>순위</th><th>칸</th><th>가린 뒤 확률</th><th>떨어진 양</th></tr>${top.map((k, i) => `<tr><td>${i + 1}</td><td>${k.r}행 ${k.c}열</td><td>${k.after.toFixed(2)}</td><td><b>${k.drop.toFixed(2)}</b></td></tr>`).join("")}</table>
+    <p class="small" style="margin:8px 0 0">본 클래스 <b>${esc(result.cls)}</b>, 원본 확률 ${result.orig.toFixed(2)}. 가장 많이 떨어진 칸: ${txt}.<br>
+    ${max <= 0.05 ? "어디를 가려도 0.05 이하로만 떨어져요. 특정 부분이 아니라 사진 <b>전체</b>(조명·밝기 같은 조건)에 기대고 있을 수 있어요." : "이 칸들이 사진의 어디인지(옷, 배경, 손, 그림자, 글자) 확인해 분석표에 적으세요."}</p>`;
+  $("cells").innerHTML = `<table><tr><th>행</th><th>열</th>${CLASSES.map(c => `<th>가린 뒤 ${c}</th>`).join("")}<th>떨어진 양</th></tr>${result.cells.map(k => `<tr><td>${k.r}</td><td>${k.c}</td>${CLASSES.map(c => `<td>${(k.p[c] ?? 0).toFixed(3)}</td>`).join("")}<td>${k.drop.toFixed(3)}</td></tr>`).join("")}</table>`;
+}
+
+/* 내보내기: 칸별 CSV, 히트맵 PNG, 분석표 CSV */
+const base0 = () => photoName.replace(/\.[^.]+$/, "");
+$("csv").onclick = () => saveBlob(new Blob([toCsv([["사진", photoName], ["모델", modelName], ["본 클래스", result.cls], ["원본 확률", result.orig.toFixed(3)], ["격자", result.g], ["가림 칸 크기", result.mult], [],
+  ["행","열", ...CLASSES.map(c => "가린뒤_" + c), "떨어진양"], ...result.cells.map(k => [k.r, k.c, ...CLASSES.map(c => (k.p[c] ?? 0).toFixed(3)), k.drop.toFixed(3)])])], { type:"text/csv;charset=utf-8" }), `가리기_${base0()}_${modelName}.csv`);
+$("png").onclick = () => $("heat").toBlob(b => saveBlob(b, `히트맵_${base0()}_${modelName}.png`));
+$("addRow").onclick = () => {
+  rows.push([photoName, `${$("fActual").value || "?"} ${$("fPred").textContent}`, $("fCells").value, $("fWhat").value, $("fShape").value, $("fHyp").value, $("fCheck").value]);
+  $("table").innerHTML = `<table><tr><th>사진</th><th>정답 → 예측 (본 클래스)</th><th>가장 떨어진 칸</th><th>그 자리에 있는 것</th><th>모양</th><th>가설</th><th>확인 방법</th></tr>${rows.map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>`;
+  $("tableCsv").disabled = false; ["fWhat","fHyp","fCheck"].forEach(id => $(id).value = ""); $("fShape").value = "";
+};
+$("tableCsv").onclick = () => saveBlob(new Blob([toCsv([["사진","정답 → 예측 (본 클래스)","가장 떨어진 칸","그 자리에 있는 것","모양","가설","확인 방법"], ...rows])], { type:"text/csv;charset=utf-8" }), "대표오류_분석표.csv");
+
+/* =========================================================
+   평가 화면(eval.html)에서 사진을 넘겨받기: 같은 사이트의 탭끼리만 주고받는다
+   ========================================================= */
+window.addEventListener("message", ev => {
+  if (ev.origin !== location.origin || !ev.data || ev.data.type !== "occlude-image") return;
+  setPhoto(ev.data.dataUrl, ev.data.name, ev.data.actual);
+});
+if (window.opener) window.opener.postMessage({ type:"occlude-ready" }, location.origin);
+
+// 주소 뒤 ?model=v2 면 v2, 아니면 v1을 먼저 불러온다
+loadVersion(new URLSearchParams(location.search).get("model") === "v2" ? "v2" : "v1");
+</script>
+</body>
+</html>
