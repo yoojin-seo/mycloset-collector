@@ -46,8 +46,11 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .status.err{background:#F3E6D8;color:var(--b);border:1px solid var(--b2)}
 /* 0단계 번호 고르기 */
 /* 카메라 */
-.camera{max-width:420px;aspect-ratio:4/3;margin:12px auto;background:#3B2A1C;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--y2);overflow:hidden;text-align:center;padding:10px;font-size:14px}
+.camera{position:relative;max-width:420px;aspect-ratio:4/3;margin:12px auto;background:#3B2A1C;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--y2);overflow:hidden;text-align:center;padding:10px;font-size:14px}
 .camera video{width:100%;height:100%;object-fit:cover}
+.countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:96px;font-weight:800;color:#fff;background:rgba(59,42,28,.35)}
+.camtools label{display:flex;align-items:center;justify-content:center;gap:6px;margin:0;flex:1;min-width:120px;font-size:14px;font-weight:700;color:var(--b);background:var(--y3);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.camtools select{width:auto;padding:5px 8px}
 .preview{display:block;width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;margin:10px auto;border-radius:10px;border:1px solid var(--line)}
 .choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .choice button{min-width:0;background:#fff}
@@ -680,24 +683,73 @@ function surveyCsv(phase){
 /* =========================================================
    8. 카메라 / 사진 선택 (3단계·5단계가 같이 사용)
    ========================================================= */
+let facing = "environment";   // 지금 쓰는 카메라 방향: environment = 뒤쪽, user = 앞쪽(셀카)
+let camTimer = null;          // 타이머가 세는 중이면 그 번호
 function stopStream(){
+  if (camTimer) { clearInterval(camTimer); camTimer = null; }
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
-  ["c3","c5","c6"].forEach(p => { $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden"); $(p + "Capture").disabled = true; });
+  ["c3","c5","c6"].forEach(p => {
+    $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden");
+    $(p + "Capture").disabled = true; $(p + "Capture").textContent = "사진 촬영";
+    if ($(p + "Flip")) $(p + "Flip").disabled = true;
+    const cd = $(p + "Video").parentElement.querySelector(".countdown"); if (cd) cd.classList.add("hidden");
+  });
 }
 function setupCamera(p, fileId, onPhoto){
-  const video = $(p + "Video");
+  const video = $(p + "Video"), cam = video.parentElement;
+  // 카메라 전환 버튼과 타이머를 '사진 촬영' 줄 아래에 붙인다 (3·5·6단계 모두 같은 모양)
+  const tools = document.createElement("div"); tools.className = "actions camtools";
+  tools.innerHTML = `<button type="button" id="${p}Flip" disabled>앞/뒤 카메라 전환</button>
+    <label>타이머 <select id="${p}Timer"><option value="0">끔</option><option value="3">3초</option><option value="5">5초</option><option value="10">10초</option></select></label>`;
+  $(p + "Capture").parentElement.after(tools);
+  const count = document.createElement("div"); count.className = "countdown hidden"; cam.appendChild(count);
+
+  // 조건(constraints)에 맞는 카메라를 켜서 화면에 보여 준다. playsinline은 아이폰에서 화면이 멈추는 문제를 막는다
+  async function open(constraints){
+    stopStream();
+    stream = await navigator.mediaDevices.getUserMedia({ video:constraints, audio:false });
+    video.setAttribute("playsinline", ""); video.srcObject = stream;
+    const set = stream.getVideoTracks()[0].getSettings ? stream.getVideoTracks()[0].getSettings() : {};
+    if (set.facingMode) facing = set.facingMode;
+    video.style.transform = facing === "user" ? "scaleX(-1)" : "";   // 앞쪽 카메라는 거울처럼 보여 줌 (찍힌 사진은 뒤집지 않음)
+    video.classList.remove("hidden"); $(p + "Msg").classList.add("hidden");
+    $(p + "Capture").disabled = false; $(p + "Flip").disabled = false;
+    await video.play();
+  }
   $(p + "Start").onclick = async () => {
-    try {
-      stopStream();
-      // 후면 카메라 우선, playsinline은 아이폰에서 화면이 멈추는 문제를 막는다
-      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
-      video.setAttribute("playsinline", ""); video.srcObject = stream;
-      video.classList.remove("hidden"); $(p + "Msg").classList.add("hidden"); $(p + "Capture").disabled = false;
-      await video.play();
-    } catch (e) { alert("카메라를 켤 수 없어요. 카메라 권한을 허용했는지 확인하거나 '사진 선택'을 이용해 주세요."); }
+    try { await open({ facingMode:{ ideal:facing } }); }   // 처음엔 뒤쪽 카메라 우선
+    catch (e) { alert("카메라를 켤 수 없어요. 카메라 권한을 허용했는지 확인하거나 '사진 선택'을 이용해 주세요."); }
   };
-  $(p + "Capture").onclick = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight)); };
+  // 카메라 전환: 태블릿·휴대폰은 앞/뒤를 바꾸고, 노트북처럼 방향 정보가 없으면 연결된 카메라를 차례로 바꾼다
+  $(p + "Flip").onclick = async () => {
+    const before = stream && stream.getVideoTracks()[0].getSettings ? stream.getVideoTracks()[0].getSettings().deviceId : null;
+    const next = facing === "user" ? "environment" : "user";
+    try { await open({ facingMode:{ exact:next } }); facing = next; video.style.transform = facing === "user" ? "scaleX(-1)" : ""; return; } catch (e) {}
+    try {
+      const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+      if (cams.length < 2) throw new Error("only one");
+      const i = cams.findIndex(c => c.deviceId === before);
+      await open({ deviceId:{ exact:cams[(i + 1) % cams.length].deviceId } });
+    } catch (e) {
+      alert("바꿀 수 있는 다른 카메라가 없어요.");
+      try { await open(before ? { deviceId:{ exact:before } } : { facingMode:{ ideal:facing } }); } catch (e2) {}
+    }
+  };
+  // 사진 촬영: 타이머가 켜져 있으면 숫자를 센 뒤 찍는다. 세는 중에 다시 누르면 취소
+  const snap = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight)); };
+  $(p + "Capture").onclick = () => {
+    if (camTimer) { clearInterval(camTimer); camTimer = null; count.classList.add("hidden"); $(p + "Capture").textContent = "사진 촬영"; return; }
+    let left = +$(p + "Timer").value;
+    if (!left) return snap();
+    count.textContent = left; count.classList.remove("hidden"); $(p + "Capture").textContent = "취소";
+    camTimer = setInterval(() => {
+      left--;
+      if (left > 0) { count.textContent = left; return; }
+      clearInterval(camTimer); camTimer = null; count.classList.add("hidden"); $(p + "Capture").textContent = "사진 촬영";
+      snap();
+    }, 1000);
+  };
   $(p + "Choose").onclick = () => $(fileId).click();
   // 고른 사진마다 정사각형으로 맞춰 onPhoto(사진, 파일이름)에 넘긴다 (6단계는 여러 장 가능)
   $(fileId).onchange = e => {
