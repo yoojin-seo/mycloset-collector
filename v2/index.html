@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 옷장 탐정 v2 · 고친 AI와 비교하기</title>
+<!--
+  [배포 폴더]
+  /index.html, /model.json, /metadata.json, /weights.bin   ← v1 (원래 앱)
+  /v2/index.html, /v2/model.json, /v2/metadata.json, /v2/weights.bin ← v2 (이 파일)
+  학습용 사진 원본은 배포 폴더와 GitHub 저장소에 넣지 않는다.
+-->
+<style>
+  :root { --main:#3b6fd8; --soft:#eef3fd; --good:#1f9d63; --bad:#d64545; --warn:#d9822b; --line:#dde3ee; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif; background:#f7f9fc; color:#222; line-height:1.6; }
+  main { max-width:960px; margin:0 auto; padding:16px; }
+  h1 { margin:6px 0; font-size:1.7rem; }
+  h2 { font-size:1.15rem; margin:0 0 10px; }
+  .badge { background:var(--main); color:#fff; border-radius:8px; padding:2px 10px; font-size:1rem; }
+  .back { color:var(--main); text-decoration:none; font-weight:600; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin:14px 0; }
+  .soft { background:var(--soft); }
+  .card ul { margin:0; padding-left:20px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px; }
+  button, .filebtn { font:inherit; font-weight:600; border:0; border-radius:10px; padding:10px 16px; background:var(--main); color:#fff; cursor:pointer; }
+  button:disabled { background:#aab6cc; cursor:not-allowed; }
+  .ghost { background:#fff; color:var(--main); border:2px solid var(--main); }
+  #camBox canvas { width:240px; max-width:100%; border-radius:12px; }
+  #status { text-align:center; font-weight:600; color:var(--main); }
+  table { width:100%; border-collapse:collapse; font-size:.95rem; }
+  th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:center; vertical-align:middle; }
+  th { background:#f1f4f9; }
+  td img { width:72px; height:72px; object-fit:cover; border-radius:8px; }
+  .ans { font-weight:700; }
+  .unsure { color:var(--warn); }
+  .small { font-size:.82rem; color:#666; }
+  .tag { display:inline-block; padding:3px 10px; border-radius:20px; font-weight:700; color:#fff; white-space:nowrap; }
+  .fixed { background:var(--good); } .broke { background:var(--bad); }
+  .both  { background:#6b7a90; }   .still { background:var(--warn); }
+  .sum td:first-child, .sum th:first-child { text-align:left; }
+  footer { font-size:.85rem; color:#666; text-align:center; padding:12px 0 30px; }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="/">← 처음 화면(v1)으로 돌아가기</a>
+  <h1>AI 옷장 탐정 <span class="badge">v2</span> 같은 사진, 다른 답?</h1>
+  <p>여러분이 찾아 준 <b>틀린 사진</b>과 <b>새로 찍은 사진</b>으로 다시 가르친 AI가 v2예요.
+     <b>같은 사진</b>을 처음 AI(v1)와 고친 AI(v2)에게 보여 주고, 무엇이 고쳐졌고 무엇이 새로 틀렸는지 찾아봐요.</p>
+
+  <p id="status">AI 두 개를 준비하고 있어요...</p>
+
+  <!-- ① 사용 범위와 한계 안내 -->
+  <section class="card soft">
+    <h2>이 AI를 쓸 때 알아 두기</h2>
+    <ul>
+      <li><b>상의, 하의, 양말</b> 세 가지만 알아요. 다른 물건을 보여 줘도 셋 중 하나를 골라요.</li>
+      <li>옷 한 가지만 화면 <b>가운데</b>에 크게 나오게 해 주세요. AI는 사진의 가운데 정사각형만 봐요.</li>
+      <li>가장 높은 확률이 <b id="thText">65%</b>보다 낮으면 "잘 모르겠어요"라고 해요. 이 답은 '맞음'으로 세지 않아요.</li>
+      <li>사람 얼굴이 나오지 않게 옷만 찍어요.</li>
+      <li>사진과 결과는 이 화면에서만 쓰여요. 저장하거나 어디로 보내지 않고, 새로고침하면 모두 사라져요.</li>
+    </ul>
+  </section>
+
+  <!-- ② 사진 넣기 -->
+  <section class="card">
+    <h2>1. 사진 넣기</h2>
+    <div class="row">
+      <b>지금 넣는 사진은?</b>
+      <label><input type="radio" name="kind" value="old" checked> 3단계에서 AI가 틀렸던 사진</label>
+      <label><input type="radio" name="kind" value="new"> 오늘 처음 찍은 새 사진</label>
+    </div>
+    <div class="row">
+      <label class="filebtn">사진 고르기 (여러 장 가능)
+        <input type="file" id="fileIn" accept="image/*" multiple hidden disabled>
+      </label>
+      <button id="camBtn" class="ghost" disabled>카메라 켜기</button>
+      <button id="snapBtn" disabled>사진 찍기</button>
+    </div>
+    <div id="camBox"></div>
+    <p class="small">파일 이름이 '상의…', '하의…', '양말…'로 시작하면 실제 옷이 자동으로 골라져요. 맞는지 꼭 확인하세요!</p>
+  </section>
+
+  <!-- ③ 사진마다 결과 -->
+  <section class="card">
+    <h2>2. v1과 v2의 답 비교</h2>
+    <table>
+      <thead><tr><th>사진</th><th>실제 옷</th><th>처음 AI (v1)</th><th>고친 AI (v2)</th><th>어떻게 바뀌었나?</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="5" class="small">아직 넣은 사진이 없어요.</td></tr></tbody>
+    </table>
+    <p class="small">아래 작은 글씨는 <b>실제 옷</b>에 대한 확률이에요. v1 → v2로 얼마나 올라갔는지 보세요.</p>
+  </section>
+
+  <!-- ④ 모아 보기 + 생각해 보기 -->
+  <section class="card">
+    <h2>3. 모아 보기</h2>
+    <table class="sum">
+      <thead><tr><th>사진 종류</th><th>✅ 고쳐졌어요</th><th>⚠️ 새로 틀렸어요</th><th>👍 둘 다 맞아요</th><th>❌ 둘 다 틀려요</th></tr></thead>
+      <tbody id="sumBody"></tbody>
+    </table>
+  </section>
+
+  <section class="card soft">
+    <h2>4. 생각해 보기</h2>
+    <ul>
+      <li>v1이 틀렸는데 v2가 맞힌 사진이 있나요? 우리가 어떤 사진을 더 가르쳐서 고쳐졌을까요?</li>
+      <li>v1은 맞혔는데 v2가 <b>새로 틀린</b> 사진이 있나요? 고쳤는데 왜 다른 곳이 틀렸을까요?</li>
+      <li>'틀렸던 사진'과 '새 사진' 중 어느 쪽 성적이 더 좋나요? 틀렸던 사진은 v2가 이미 <b>배운 사진</b>이라는 걸 기억하세요.
+          처음 보는 사진도 잘 맞혀야 정말 고쳐진 거예요.</li>
+      <li>v2도 틀린 사진은 v3를 만들 때 어떻게 쓰면 좋을까요?</li>
+    </ul>
+  </section>
+
+  <footer>사진, 이름, 판정 결과는 저장하거나 외부로 보내지 않습니다. · AI 옷장 탐정 v2</footer>
+</main>
+
+<!-- 티처블머신 내보내기 화면이 준 script 태그 그대로 (버전을 바꾸면 모델이 안 열림) -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.5/dist/teachablemachine-image.min.js"></script>
+<script>
+// ===== [A] 설정값: 여기만 바꾸면 된다 =====
+const MODEL_V1 = "/";      // v1 모델 3개가 있는 폴더
+const MODEL_V2 = "/v2/";   // v2 모델 3개가 있는 폴더
+const THRESHOLD = 0.65;    // 원래 앱(index.html)과 같은 값. 최고 확률이 이보다 낮으면 '잘 모르겠어요'
+
+let v1 = null, v2 = null, labels = [], webcam = null, camOn = false;
+const rows = [];           // 넣은 사진의 결과 목록 (메모리에만 있음, 새로고침하면 사라짐)
+const $ = (id) => document.getElementById(id);
+
+// ===== [B] 모델 두 개 불러오기 =====
+async function init() {
+  $("thText").textContent = Math.round(THRESHOLD * 100) + "%";
+  try {
+    [v1, v2] = await Promise.all([
+      tmImage.load(MODEL_V1 + "model.json", MODEL_V1 + "metadata.json"),
+      tmImage.load(MODEL_V2 + "model.json", MODEL_V2 + "metadata.json"),
+    ]);
+  } catch (e) {
+    $("status").textContent = "AI를 불러오지 못했어요. 선생님께 알려 주세요.";
+    return;
+  }
+  labels = v2.getClassLabels();          // ["상의","하의","양말"]
+  $("status").textContent = "준비 완료! 사진을 넣어 보세요.";
+  $("fileIn").disabled = false;
+  $("camBtn").disabled = false;
+  drawSummary();
+}
+
+// ===== [C] 사진 한 장을 224×224 정사각형으로 맞추기 (가운데만 잘라냄) =====
+function toSquare(source, w, h) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 224;
+  const s = Math.min(w, h);
+  c.getContext("2d").drawImage(source, (w - s) / 2, (h - s) / 2, s, s, 0, 0, 224, 224);
+  return c;
+}
+
+// ===== [D] 사진 고르기: 여러 장을 차례로 판정 (기기 안에서만 읽음) =====
+$("fileIn").addEventListener("change", async (ev) => {
+  for (const file of ev.target.files) {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.src = url; });
+    const sq = toSquare(img, img.naturalWidth, img.naturalHeight);
+    URL.revokeObjectURL(url);
+    const guess = labels.find((l) => file.name.startsWith(l)) || "";   // 파일 이름 앞글자로 실제 옷 추측
+    await addRow(sq, guess);
+  }
+  ev.target.value = "";
+});
+
+// ===== [E] 카메라: 옷을 찍으니 뒷면 카메라 먼저, iPhone용 playsinline =====
+$("camBtn").addEventListener("click", async () => {
+  if (camOn) { webcam.stop(); camOn = false; $("camBox").innerHTML = ""; $("camBtn").textContent = "카메라 켜기"; $("snapBtn").disabled = true; return; }
+  try {
+    webcam = new tmImage.Webcam(240, 240, false);
+    await webcam.setup({ facingMode: "environment" });
+    webcam.webcam.setAttribute("playsinline", "");
+    webcam.webcam.muted = true;
+    await webcam.play();
+    $("camBox").appendChild(webcam.canvas);
+    camOn = true; $("camBtn").textContent = "카메라 끄기"; $("snapBtn").disabled = false;
+    (function loop() { if (camOn) { webcam.update(); requestAnimationFrame(loop); } })();
+  } catch (e) {
+    $("status").textContent = "카메라를 켤 수 없어요. 권한을 확인하거나 '사진 고르기'를 써 주세요.";
+  }
+});
+$("snapBtn").addEventListener("click", () => addRow(toSquare(webcam.canvas, 240, 240), ""));
+
+// ===== [F] 같은 사진을 v1, v2에 모두 넣고 결과 저장 =====
+async function addRow(canvas, realGuess) {
+  const p1 = await v1.predict(canvas);
+  const p2 = await v2.predict(canvas);
+  rows.push({
+    thumb: canvas.toDataURL("image/jpeg", 0.7),     // 표에 보여 줄 작은 사진 (이 화면에만)
+    kind: document.querySelector('input[name="kind"]:checked').value,
+    real: realGuess, p1, p2,
+  });
+  drawTable(); drawSummary();
+}
+
+// ===== [G] 판정 규칙: 최고 확률이 기준값 이상이면 그 클래스, 아니면 '모름' =====
+function decide(preds) {
+  const top = preds.reduce((a, b) => (b.probability > a.probability ? b : a));
+  return top.probability >= THRESHOLD ? top : { className: null, probability: top.probability };
+}
+function probOf(preds, label) {
+  const p = preds.find((x) => x.className === label);
+  return p ? Math.round(p.probability * 100) : 0;
+}
+
+// ===== [H] v1 → v2 변화 이름 붙이기 (이 수업의 핵심) =====
+function change(r) {
+  if (!r.real) return null;                          // 실제 옷을 아직 안 고르면 판단 보류
+  const ok1 = decide(r.p1).className === r.real;
+  const ok2 = decide(r.p2).className === r.real;
+  if (!ok1 && ok2) return "fixed";   // 고쳐졌어요
+  if (ok1 && !ok2) return "broke";   // 새로 틀렸어요
+  if (ok1 && ok2)  return "both";    // 둘 다 맞아요
+  return "still";                    // 둘 다 틀려요
+}
+const TAG = { fixed:"✅ 고쳐졌어요", broke:"⚠️ 새로 틀렸어요", both:"👍 둘 다 맞아요", still:"❌ 둘 다 틀려요" };
+
+// ===== [I] 결과 표 그리기 (글자는 textContent로 넣어 안전하게) =====
+function cell(tr, child) { const td = document.createElement("td"); if (child) td.append(child); tr.append(td); return td; }
+function answerBox(preds, real) {
+  const d = decide(preds), box = document.createElement("div");
+  const a = document.createElement("div");
+  a.className = "ans" + (d.className ? "" : " unsure");
+  a.textContent = d.className ? `${d.className} ${Math.round(d.probability * 100)}%` : "잘 모르겠어요";
+  box.append(a);
+  if (real) { const s = document.createElement("div"); s.className = "small"; s.textContent = `${real} 확률 ${probOf(preds, real)}%`; box.append(s); }
+  return box;
+}
+function drawTable() {
+  const tb = $("tbody"); tb.innerHTML = "";
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    const img = document.createElement("img"); img.src = r.thumb; img.alt = "넣은 옷 사진";
+    const td0 = cell(tr, img);
+    const k = document.createElement("div"); k.className = "small"; k.textContent = r.kind === "old" ? "틀렸던 사진" : "새 사진"; td0.append(k);
+
+    const sel = document.createElement("select");                 // 실제 옷은 학생이 고름
+    ["", ...labels].forEach((l) => { const o = document.createElement("option"); o.value = l; o.textContent = l || "고르기"; sel.append(o); });
+    sel.value = r.real;
+    sel.addEventListener("change", () => { r.real = sel.value; drawTable(); drawSummary(); });
+    cell(tr, sel);
+
+    cell(tr, answerBox(r.p1, r.real));
+    cell(tr, answerBox(r.p2, r.real));
+    const c = change(r), tag = document.createElement("span");
+    if (c) { tag.className = "tag " + c; tag.textContent = TAG[c]; } else { tag.className = "small"; tag.textContent = "실제 옷을 골라 주세요"; }
+    cell(tr, tag);
+    tb.append(tr);
+  });
+}
+
+// ===== [J] 사진 종류별로 네 가지 변화 개수 세기 =====
+function drawSummary() {
+  const sb = $("sumBody"); sb.innerHTML = "";
+  [["old", "3단계에서 틀렸던 사진 (v2가 배운 사진)"], ["new", "오늘 처음 찍은 새 사진"]].forEach(([kind, name]) => {
+    const count = { fixed:0, broke:0, both:0, still:0 };
+    rows.filter((r) => r.kind === kind).forEach((r) => { const c = change(r); if (c) count[c]++; });
+    const tr = document.createElement("tr");
+    [name, count.fixed, count.broke, count.both, count.still].forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.append(td); });
+    sb.append(tr);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
