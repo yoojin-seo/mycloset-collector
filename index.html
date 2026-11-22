@@ -225,7 +225,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
       <b>이 AI의 사용 범위와 한계</b>
       <ul>
         <li>이 AI는 <b>상의 · 하의 · 양말</b> 3가지만 배웠어요. 다른 물건을 보여줘도 셋 중 하나로 답해요.</li>
-        <li>AI가 고른 답의 확률이 <b id="thLabel">60%</b>보다 낮으면 <b>'잘 모르겠어요'</b>라고 표시해요.</li>
+        <li>AI가 고른 답의 확률이 <b id="thLabel">65%</b>보다 낮으면 <b>'잘 모르겠어요'</b>라고 표시해요.</li>
         <li>얼굴, 이름표, 친구 모습이 나오지 않게 <b>옷만</b> 찍어요.</li>
       </ul>
     </div>
@@ -344,7 +344,13 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
 <section class="step" data-step="6">
   <div class="card">
     <h2>6단계 · 고친 AI(v2) 확인하기</h2>
-    <p class="hint">선생님이 여러분이 찍은 사진으로 AI를 고쳤어요(v2). 처음 AI(v1)가 틀렸던 사진을 v2에게 다시 보여 주고, 내 디버깅이 효과가 있었는지 확인해요.</p>
+    <p class="hint">선생님이 여러분이 찍은 사진으로 AI를 고쳤어요(v2). <b>같은 사진</b>을 처음 AI(v1)와 고친 AI(v2)에게 보여 주고, 내 디버깅이 효과가 있었는지 확인해요.</p>
+    <div class="notice"><b>두 가지 사진으로 모두 확인해요</b>
+      <ul>
+        <li><b>v2가 배운 사진</b>: 3단계에서 틀렸던 사진, 5단계 새 사진. v2는 이 사진으로 공부했으니 맞히기 쉬워요.</li>
+        <li><b>v2가 처음 보는 사진</b>: 지금 카메라로 새로 찍은 사진. 이것도 맞혀야 진짜로 고쳐진 거예요!</li>
+      </ul>
+    </div>
     <div id="v2Status" class="status">고친 AI(v2)가 준비됐는지 확인하는 중...</div>
     <div class="actions"><button id="v2Retry">v2가 준비됐는지 다시 확인</button></div>
     <div id="v2Area" class="hidden">
@@ -359,12 +365,19 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
       </div>
       <p class="small">내려받아 둔 틀린 사진(예: 상의01(1).jpg)을 고르면 이름에서 실제 옷 종류를 알아서 읽어요.</p>
       <h3>② 처음 AI(v1) → 고친 AI(v2)</h3>
-      <div class="stats">
-        <div class="stat"><b id="v2N">0</b><span>검사한 사진</span></div>
-        <div class="stat"><b id="v2Ok">0</b><span>v2가 맞힘</span></div>
-        <div class="stat"><b id="v2Better">0</b><span>v1은 틀렸는데 v2는 맞힘</span></div>
-      </div>
+      <!-- 사진 종류(배운 사진/처음 보는 사진)별로 v1→v2 변화 네 가지를 센 표 -->
+      <table id="v2Sum">
+        <tr><th>사진 종류</th><th>검사</th><th>좋아졌어요</th><th>오히려 틀림</th><th>둘 다 맞음</th><th>아직 틀림</th></tr>
+      </table>
       <div id="v2List"></div>
+      <div class="notice" style="margin-top:12px"><b>생각해 볼 질문</b>
+        <ul>
+          <li>같은 사진인데 v1과 v2의 답이 달라진 까닭은 무엇일까요? AI의 코드는 그대로예요. 바뀐 것은 무엇일까요?</li>
+          <li>'오히려 틀림'이 있나요? 한 곳을 고쳤는데 다른 곳이 틀린 까닭은 무엇일까요?</li>
+          <li>'배운 사진'과 '처음 보는 사진' 중 어느 쪽 성적이 더 좋나요? 왜 그럴까요?</li>
+          <li>v2도 틀린 사진이 있다면, 다음 v3를 만들 때 어떤 사진을 더 넣어야 할까요?</li>
+        </ul>
+      </div>
       <label for="v2Reflect">4단계에서 생각한 고치는 방법이 효과가 있었나요? 왜 그렇게 생각하나요?</label>
       <textarea id="v2Reflect" maxlength="500" placeholder="예: 어두운 곳 양말 사진을 넣었더니 v2는 양말이라고 맞혔어요. 그런데 구겨진 상의는 아직 틀려요."></textarea>
       <div class="actions">
@@ -1050,17 +1063,22 @@ async function loadV2(){
   } catch (e) { console.error(e); v2Status("v2를 불러오지 못했어요. 선생님께 알려 주세요. (v2 폴더의 세 파일 확인)", true); }
 }
 $("v2Retry").onclick = loadV2;
-// 사진 한 장을 모델에 보여 주고 { label, conf } 를 돌려준다 (학생 앱과 같은 기준값 적용)
+// 확률 목록 → { 상의:0.1, 하의:0.8, 양말:0.1 } (실제 옷의 확률을 v1·v2에서 비교하려고)
+const probMap = preds => Object.fromEntries(preds.map(p => [p.label, p.probability]));
+// 사진 한 장을 모델에 보여 주고 { label, conf, probs } 를 돌려준다 (학생 앱과 같은 기준값 적용)
 async function judge(m, dataUrl){
   const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = dataUrl; });
   const c = document.createElement("canvas"); c.width = c.height = 224; c.getContext("2d").drawImage(img, 0, 0, 224, 224);
-  const p = (await m.predict(c)).map(x => ({ label:norm(x.className), probability:x.probability })).sort((a, b) => b.probability - a.probability)[0];
-  return { label: p.probability < THRESHOLD ? UNSURE : p.label, conf: p.probability };
+  const all = (await m.predict(c)).map(x => ({ label:norm(x.className), probability:x.probability })).sort((a, b) => b.probability - a.probability);
+  const p = all[0];
+  return { label: p.probability < THRESHOLD ? UNSURE : p.label, conf: p.probability, probs: probMap(all) };
 }
 const labelFromName = n => { const m = String(n || "").normalize("NFC").match(/^(상의|하의|양말)/); return m ? m[1] : null; };
-async function addV2(image, name, actual, v1, key){
+// seen = v2가 배운 사진인지. 3단계 틀린 사진·내려받은 사진(상의01(1).jpg 같은 이름)은 v2 학습에 쓰였으므로 true,
+// 6단계에서 카메라로 새로 찍은 사진은 v2가 처음 보는 사진이므로 false
+async function addV2(image, name, actual, v1, key, seen){
   if (key && V2.some(x => x.key === key)) return;   // 같은 사진을 두 번 넣지 않기
-  const it = { id: V2.length + 1, key, image, name: name || `사진${V2.length + 1}`, actual, v1, v2:null };
+  const it = { id: V2.length + 1, key, image, name: name || `새로 찍은 사진${V2.length + 1}`, actual, v1, v2:null, seen };
   V2.push(it); renderV2();
   if (!it.v1 && model) it.v1 = await judge(model, image);
   if (modelV2) it.v2 = await judge(modelV2, image);
@@ -1068,9 +1086,10 @@ async function addV2(image, name, actual, v1, key){
 }
 $("v2Mine").onclick = () => {
   const err = errors(); if (!err.length) return alert("이 기기에 남아 있는 3단계 틀린 사진이 없어요. 내려받아 둔 사진을 '사진 선택'으로 넣어 주세요.");
-  err.forEach(t => addV2(t.image, t.file, t.actual, { label:t.aiLabel, conf:t.conf }, "t" + t.id));
+  err.forEach(t => addV2(t.image, t.file, t.actual, { label:t.aiLabel, conf:t.conf, probs:probMap(t.preds) }, "t" + t.id, true));
 };
-setupCamera("c6", "fileInput6", (d, name) => addV2(d, name, labelFromName(name), null, name ? "f" + name : null));
+// 파일 이름이 '상의…/하의…/양말…'로 시작하면 내려받아 둔 틀린 사진·새 사진 → 배운 사진, 그 밖(카메라 등)은 처음 보는 사진
+setupCamera("c6", "fileInput6", (d, name) => addV2(d, name, labelFromName(name), null, name ? "f" + name : null, !!labelFromName(name)));
 function verdict(it){
   if (!it.actual || !it.v2) return "";
   const ok1 = it.v1 && it.v1.label === it.actual, ok2 = it.v2.label === it.actual;
@@ -1079,19 +1098,31 @@ function verdict(it){
   if (ok1 && !ok2) return "v2가 오히려 틀렸어요. 왜 그럴까요?";
   return "아직 틀려요. 다른 원인이 있을지 생각해 봐요.";
 }
+// v1·v2가 각각 맞았는지로 네 가지 중 하나를 고른다 (표에서 세는 데 씀)
+function kindOf(it){
+  if (!it.actual || !it.v2) return null;
+  const ok1 = it.v1 && it.v1.label === it.actual, ok2 = it.v2.label === it.actual;
+  return !ok1 && ok2 ? "better" : ok1 && !ok2 ? "worse" : ok1 ? "both" : "still";
+}
+// 실제 옷의 확률: v1 → v2로 얼마나 바뀌었는지 (같은 사진인데 숫자가 달라지는 것을 보여 줌)
+const realProb = (r, actual) => r && r.probs && actual ? pct(r.probs[actual] || 0) : "-";
 function renderV2(){
-  const done = V2.filter(i => i.actual && i.v2);
-  $("v2N").textContent = done.length;
-  $("v2Ok").textContent = done.filter(i => i.v2.label === i.actual).length;
-  $("v2Better").textContent = done.filter(i => i.v2.label === i.actual && !(i.v1 && i.v1.label === i.actual)).length;
+  // 사진 종류별 표: 배운 사진 / 처음 보는 사진
+  const rows = [[true, "v2가 배운 사진"], [false, "v2가 처음 보는 사진"]].map(([seen, name]) => {
+    const list = V2.filter(i => i.seen === seen && kindOf(i)), n = k => list.filter(i => kindOf(i) === k).length;
+    return `<tr><td>${name}</td><td>${list.length}</td><td>${n("better")}</td><td>${n("worse")}</td><td>${n("both")}</td><td>${n("still")}</td></tr>`;
+  }).join("");
+  $("v2Sum").innerHTML = `<tr><th>사진 종류</th><th>검사</th><th>좋아졌어요</th><th>오히려 틀림</th><th>둘 다 맞음</th><th>아직 틀림</th></tr>${rows}`;
   const show = r => r ? `${esc(r.label)} (${pct(r.conf)})` : "판정 중...";
   $("v2List").innerHTML = V2.map(i => `
     <div class="debugcard" data-v2="${i.id}">
       <img src="${i.image}" alt="">
       <div>
-        <div class="fname">${esc(i.name)}</div>
+        <div class="fname">${esc(i.name)} · ${i.seen ? "v2가 배운 사진" : "v2가 처음 보는 사진"}</div>
         ${i.actual ? `<div class="tag">실제: ${esc(i.actual)}</div>` : `<label>실제 옷은 무엇인가요?</label><div class="choice">${CLASSES.map(c => `<button type="button" data-act="${c}">${c}</button>`).join("")}</div>`}
-        <table style="margin-top:8px"><tr><th>처음 AI (v1)</th><th>고친 AI (v2)</th></tr><tr><td>${show(i.v1)}</td><td>${show(i.v2)}</td></tr></table>
+        <table style="margin-top:8px"><tr><th></th><th>처음 AI (v1)</th><th>고친 AI (v2)</th></tr>
+          <tr><th>AI의 답</th><td>${show(i.v1)}</td><td>${show(i.v2)}</td></tr>
+          ${i.actual ? `<tr><th>${esc(i.actual)}일 확률</th><td>${realProb(i.v1, i.actual)}</td><td>${realProb(i.v2, i.actual)}</td></tr>` : ""}</table>
         ${verdict(i) ? `<div class="feedback ${verdict(i).startsWith("좋아") || verdict(i).startsWith("v1도") ? "ok" : "no"}">${verdict(i)}</div>` : ""}
       </div>
     </div>`).join("");
@@ -1100,8 +1131,8 @@ $("v2List").addEventListener("click", e => { const b = e.target.closest("[data-a
   const it = V2.find(x => x.id === +b.closest("[data-v2]").dataset.v2); it.actual = b.dataset.act; unsaved.v2 = true; renderV2(); });
 $("v2Csv").onclick = () => {
   if (!V2.length) return alert("아직 검사한 사진이 없어요.");
-  const rows = [["파일이름","학년","반","학생코드","실제종류","v1판단","v1확률","v2판단","v2확률","결과"],
-    ...V2.map(i => [i.name, S.grade || "", S.cls || "", S.code, i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", verdict(i)]),
+  const rows = [["파일이름","학년","반","학생코드","사진종류","실제종류","v1판단","v1확률","v2판단","v2확률","v1실제옷확률","v2실제옷확률","결과"],
+    ...V2.map(i => [i.name, S.grade || "", S.cls || "", S.code, i.seen ? "배운 사진" : "처음 보는 사진", i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", realProb(i.v1, i.actual), realProb(i.v2, i.actual), verdict(i)]),
     [], ["나의 생각", $("v2Reflect").value.trim()]];
   saveCsv(toCsv(rows), `v2확인_${tag()}.csv`); unsaved.v2 = false;
 };

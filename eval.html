@@ -72,13 +72,16 @@ tr.pick td{background:var(--y2);font-weight:700}
   <span class="sub" id="subTitle">AI 옷장 탐정 · 모델 v1</span>
   <nav><a href="occlude.html">가리기 실험기</a><a href="teacher.html">학습지 결과</a><a href="./">학생용 앱</a></nav>
 </header>
-<!-- 평가할 모델 고르기: v1 = 배포 폴더 맨 위 모델, v2 = 배포 폴더 안 v2 폴더 모델 -->
+<!-- 평가할 모델 고르기: v0 = v0 폴더(맨 처음 앱의 모델), v1 = 배포 폴더 맨 위 모델, v2 = v2 폴더 모델 -->
 <div class="modelbar">
   <b>평가할 모델</b>
+  <button data-ver="v0" class="ver">v0 (맨 처음 모델)</button>
   <button data-ver="v1" class="ver primary">v1 (처음 모델)</button>
   <button data-ver="v2" class="ver">v2 (고친 모델)</button>
   <label class="filebtn" title="학생들에게 공개하기 전에 v2를 미리 평가할 때">배포 전 미리 평가 (파일 3개)<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
   <span class="msg" id="mStatus">v1 모델을 불러오는 중...</span>
+  <!-- 같은 사진 묶음으로 평가한 모델들의 결과를 나란히 모아 보는 표 -->
+  <div id="cmpBox" class="hidden" style="flex-basis:100%"></div>
 </div>
 
 <div class="grid">
@@ -152,8 +155,10 @@ function mStatus(t, err = false){ $("mStatus").textContent = t; $("mStatus").cla
 /* =========================================================
    모델 불러오기: 처음엔 같은 폴더(./), v2는 위치나 파일로 바꿔 끼움
    ========================================================= */
-// 모델 위치: v1은 배포 폴더 맨 위(./), v2는 배포 폴더 안의 v2 폴더(./v2/)
-const MODEL_DIR = { v1:"./", v2:"./v2/" };
+// 모델 위치: v0은 v0 폴더(./v0/), v1은 배포 폴더 맨 위(./), v2는 v2 폴더(./v2/)
+const MODEL_DIR = { v0:"./v0/", v1:"./", v2:"./v2/" };
+// 모델별 결과 모음: 같은 사진 묶음으로 v0·v1·v2를 차례로 평가하면 여기에 쌓인다 (사진 묶음이 바뀌면 비움)
+const compare = {};
 function onModel(name){
   modelName = name; modelKey++;   // 모델이 바뀌면 모든 사진을 새 모델로 다시 판정
   $("subTitle").textContent = `AI 옷장 탐정 · 모델 ${name}`;
@@ -166,7 +171,7 @@ async function loadVersion(ver){
   if (location.protocol === "file:") return mStatus("파일을 더블클릭해서 열면 모델을 불러올 수 없어요. 배포 주소 뒤에 /eval.html 로 열어 주세요.", true);
   const dir = MODEL_DIR[ver]; mStatus(`${ver} 불러오는 중...`);
   try { model = await tmImage.load(dir + "model.json", dir + "metadata.json"); onModel(ver); }
-  catch (e) { console.error(e); mStatus(ver === "v2" ? "v2 모델이 아직 없어요. 배포 폴더 안에 v2 폴더를 만들고 모델 파일 3개를 넣어 주세요." : "v1 모델을 불러오지 못했어요. eval.html과 같은 위치에 model.json · metadata.json · weights.bin이 있는지 확인해 주세요.", true); }
+  catch (e) { console.error(e); mStatus(ver === "v1" ? "v1 모델을 불러오지 못했어요. eval.html과 같은 위치에 model.json · metadata.json · weights.bin이 있는지 확인해 주세요." : `${ver} 모델이 아직 없어요. 배포 폴더 안에 ${ver} 폴더를 만들고 모델 파일 3개를 넣어 주세요.`, true); }
 }
 document.querySelectorAll(".ver").forEach(b => b.onclick = () => loadVersion(b.dataset.ver));
 // 배포하기 전에 v2를 미리 평가: 내려받은 파일 3개를 직접 선택
@@ -198,6 +203,7 @@ const IMG = /\.(jpe?g|png|webp|bmp|gif)$/i, seen = new Set();
 function addItem(path, blob){
   path = path.normalize("NFC");   // 맥에서 압축한 한글 이름(자모 분리)을 정상 글자로
   if (seen.has(path)) return; seen.add(path);
+  Object.keys(compare).forEach(k => delete compare[k]);   // 사진 묶음이 바뀌면 모델 비교표를 새로 시작
   items.push({ path, name:path.split("/").pop(), actual:labelFromPath(path), blob, url:URL.createObjectURL(blob), probs:null, key:0 });
 }
 async function addFiles(list){
@@ -215,7 +221,7 @@ async function addFiles(list){
 }
 $("pFiles").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("pFolder").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
-$("pClear").onclick = () => { items.forEach(i => URL.revokeObjectURL(i.url)); items = []; seen.clear(); filter = null; $("bar").style.width = "0"; render(); };
+$("pClear").onclick = () => { items.forEach(i => URL.revokeObjectURL(i.url)); items = []; seen.clear(); filter = null; Object.keys(compare).forEach(k => delete compare[k]); $("bar").style.width = "0"; render(); };
 $("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
 $("drop").ondragleave = () => $("drop").classList.remove("over");
 $("drop").ondrop = async e => {
@@ -283,6 +289,9 @@ function render(){
   $("pStatus").innerHTML = `선택한 사진 ${items.length}장 · 판정 완료 ${r.n}장` + (!model ? " · 모델을 먼저 불러와 주세요" : "") +
     (none ? `<br>정답(클래스)을 알 수 없는 사진 ${none}장은 제외: ${items.filter(i => !i.actual).slice(0, 5).map(i => esc(i.name)).join(", ")}${none > 5 ? " …" : ""}` : "");
   $("kAcc").textContent = pct(r.ok, r.n); $("kAccSub").textContent = r.n ? `(${r.ok}/${r.n})` : "";
+  // 정답을 아는 사진을 이 모델로 모두 판정했으면 결과를 비교표에 남긴다
+  if (r.n && r.n === labeled) compare[modelName] = { n:r.n, ok:r.ok, per:r.per.map(p => ({ ...p })) };
+  renderCompare();
   $("csvBtn").disabled = !r.n;
   if (!r.n) { $("perClass").innerHTML = '<p class="hint">사진을 넣으면 클래스마다 몇 %를 맞혔는지 보여 줘요.<br>정분류율 = 그 클래스에서 맞힌 수 ÷ 그 클래스 사진 수</p>'; $("cm").innerHTML = '<p class="hint">대각선 = 맞힌 수. 대각선 밖의 칸을 누르면 그 칸의 사진만 ④에 보여요.</p>'; $("cmCheck").textContent = ""; $("thTable").innerHTML = ""; renderGallery(r); return; }
 
@@ -305,6 +314,16 @@ $("cm").addEventListener("click", e => { const td = e.target.closest("td.cell");
   filter = filter && filter.a === td.dataset.a && filter.p === td.dataset.p ? null : { a:td.dataset.a, p:td.dataset.p }; render(); });
 $("showAll").onclick = () => { filter = null; render(); };
 $("goal").oninput = () => renderThTable(judged());
+
+/* 모델 비교표: 같은 사진 묶음에서 v0 → v1 → v2 정확도가 어떻게 바뀌었는지 */
+function renderCompare(){
+  const order = ["v0", "v1", "v2", "미리보기"].filter(k => compare[k]);
+  $("cmpBox").classList.toggle("hidden", !order.length);
+  if (!order.length) return;
+  $("cmpBox").innerHTML = `<table style="background:#fff"><tr><th>같은 사진으로 비교</th><th>전체 정확도</th>${CLASSES.map(c => `<th>${c} 정분류율</th>`).join("")}</tr>${order.map(k => { const s = compare[k];
+    return `<tr><td><b>${esc(k)}</b></td><td>${pct(s.ok, s.n)} (${s.ok}/${s.n})</td>${s.per.map(p => `<td>${pct(p.ok, p.n)} (${p.ok}/${p.n})</td>`).join("")}</tr>`; }).join("")}</table>
+    <span class="small">다른 모델 버튼을 누르면 같은 사진으로 다시 판정해 이 표에 한 줄씩 쌓여요. 사진을 바꾸면 표가 비워져요.</span>`;
+}
 
 /* ② 아래 '기준값 정하기 표': 기준값을 0.50~0.95로 바꿔 가며 답한 사진과 정확도 계산 (11주차 표와 같은 열) */
 function renderThTable(list){
@@ -356,7 +375,7 @@ $("gallery").addEventListener("click", e => {
   const t = e.target.closest("[data-item]"); if (!t) return;
   const it = items[+t.dataset.item], r = new FileReader();
   r.onload = () => {
-    const w = window.open(`occlude.html?model=${modelName === "v2" ? "v2" : "v1"}`, "_blank");
+    const w = window.open(`occlude.html?model=${["v0", "v2"].includes(modelName) ? modelName : "v1"}`, "_blank");   // 지금 평가 중인 모델로 히트맵
     const msg = { type:"occlude-image", dataUrl:r.result, name:it.name, actual:it.actual };
     const onReady = ev => { if (ev.source === w && ev.data && ev.data.type === "occlude-ready") { w.postMessage(msg, location.origin); window.removeEventListener("message", onReady); } };
     window.addEventListener("message", onReady);

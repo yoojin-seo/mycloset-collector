@@ -49,6 +49,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}th,td{bo
   <section class="panel">
     <h2>1. 모델과 사진</h2>
     <div class="row">
+      <button data-ver="v0" class="ver">v0 모델</button>
       <button data-ver="v1" class="ver">v1 모델</button>
       <button data-ver="v2" class="ver">v2 모델</button>
       <label class="filebtn">파일 3개로<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
@@ -107,7 +108,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}th,td{bo
    상태와 도우미
    ========================================================= */
 const CLASSES = ["상의", "하의", "양말"], GRAY = "rgb(128,128,128)";   // 가리는 색: 회색(128)
-const MODEL_DIR = { v1:"./", v2:"./v2/" };
+const MODEL_DIR = { v0:"./v0/", v1:"./", v2:"./v2/" };
 const $ = id => document.getElementById(id);
 let model = null, modelName = "", photoUrl = null, photoName = "", base = null, result = null;
 const rows = [];   // 분석표
@@ -257,8 +258,9 @@ window.addEventListener("message", ev => {
 });
 if (window.opener) window.opener.postMessage({ type:"occlude-ready" }, location.origin);
 
-// 주소 뒤 ?model=v2 면 v2, 아니면 v1을 먼저 불러온다
-loadVersion(new URLSearchParams(location.search).get("model") === "v2" ? "v2" : "v1");
+// 주소 뒤 ?model=v0 / v2 면 그 모델, 아니면 v1을 먼저 불러온다
+const startVer = new URLSearchParams(location.search).get("model");
+loadVersion(MODEL_DIR[startVer] ? startVer : "v1");
 </script>
 </body>
 </html>
