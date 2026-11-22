@@ -89,6 +89,14 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .opts button{text-align:left;background:#fff;font-weight:500;line-height:1.45}
 .opts button.selected{background:var(--y2);border-color:var(--b);font-weight:700}
 .reason{margin-top:8px;min-height:54px}
+.webrow{display:flex!important;align-items:center;gap:6px;font-weight:500}.webrow input{width:auto}
+.camera.over{outline:3px dashed var(--y)}
+/* 8단계 성장 막대 */
+.gbar{display:grid;grid-template-columns:84px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin:3px 0}
+.gtrack{height:12px;background:var(--y3);border:1px solid var(--line);border-radius:6px;overflow:hidden}.gtrack i{display:block;height:100%}
+.garea{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
+.garea .up{color:var(--b);font-weight:800}
+.when{font-size:13px;font-weight:700;color:var(--b2);margin:8px 0 2px}
 /* 문제 속 그림: 블록 코드, 표 */
 .fig{background:var(--y3);border:1px solid var(--line);border-radius:8px;padding:12px;margin:0 0 10px;font-size:13.5px}
 .blk{background:var(--y);color:var(--b);font-weight:700;padding:6px 10px;border-radius:6px;margin:4px 0;width:fit-content}
@@ -154,6 +162,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
       <li>새 사진 찍기 – 내 생각을 반영한 사진 모으기</li>
       <li>고친 AI 확인 – 선생님이 고친 AI로 확인하기</li>
       <li>사후 학습지 – 달라진 나의 생각하는 힘 알아보기</li>
+      <li>나의 성장 – 사전·사후 학습지를 비교해 얼마나 자랐는지 보기</li>
     </ol>
     <div class="notice" style="margin-top:12px">사진과 기록은 <b>이 기기 브라우저 안에만</b> 잠시 보관되고, 자동으로 어디에도 보내지지 않아요. 새로고침하거나 창을 닫으면 사라지니 단계마다 <b>다운로드 → 패들렛 올리기</b>를 꼭 해 주세요.</div>
   </div>
@@ -230,17 +239,19 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
       </ul>
     </div>
     <h3>① 사진 찍기 (한 번에 한 장)</h3>
-    <div class="camera"><span id="c3Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c3Video" autoplay playsinline muted class="hidden"></video></div>
+    <div class="camera"><span id="c3Msg">카메라를 켜거나 사진을 넣으세요.<br><small>사진을 여기로 끌어 놓아도 돼요</small></span><video id="c3Video" autoplay playsinline muted class="hidden"></video></div>
     <div class="actions">
       <button id="c3Start">카메라 켜기</button>
       <button id="c3Capture" class="primary" disabled>사진 촬영</button>
-      <button id="c3Choose">사진 선택</button>
+      <button id="c3Choose">사진 넣기 (갤러리·다운로드)</button>
       <input id="fileInput3" type="file" accept="image/*">
     </div>
     <p class="small">사진의 가운데 정사각형 부분이 AI에게 전달돼요.</p>
+    <p class="small">인터넷 사진도 검사할 수 있어요: 태블릿은 사진을 길게 눌러 저장한 뒤 '사진 넣기'로, 컴퓨터는 사진을 복사(Ctrl+C)한 뒤 이 화면에서 붙여넣기(Ctrl+V).</p>
 
     <div id="s3Flow" class="hidden">
       <img id="s3Preview" class="preview" alt="찍은 사진">
+      <label class="webrow hidden" id="s3WebRow"><input type="checkbox" id="s3Web"> 인터넷에서 가져온 사진이에요 <span class="small">(선생님이 AI 학습에는 쓰지 않아요)</span></label>
       <h3>② 먼저 예측해요: AI는 이 사진을 뭐라고 할까?</h3>
       <div class="choice" id="s3Guess"></div>
       <div class="actions">
@@ -305,16 +316,18 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
     <h2>5단계 · 내 생각을 반영해 새 사진 찍기</h2>
     <p class="hint">4단계에서 세운 계획대로 사진을 찍어요. 이 사진들로 선생님이 AI를 고쳐서 <b>v2 버전</b>을 만들 거예요.</p>
     <div class="notice" id="s5Plan">4단계 디버깅 계획이 아직 없어요.</div>
-    <div class="camera"><span id="c5Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c5Video" autoplay playsinline muted class="hidden"></video></div>
+    <div class="camera"><span id="c5Msg">카메라를 켜거나 사진을 넣으세요.<br><small>사진을 여기로 끌어 놓아도 돼요</small></span><video id="c5Video" autoplay playsinline muted class="hidden"></video></div>
     <div class="actions">
       <button id="c5Start">카메라 켜기</button>
       <button id="c5Capture" class="primary" disabled>사진 촬영</button>
-      <button id="c5Choose">사진 선택</button>
+      <button id="c5Choose">사진 넣기 (갤러리·다운로드)</button>
       <input id="fileInput5" type="file" accept="image/*">
     </div>
     <p class="small">얼굴, 이름표, 친구 모습이 나오지 않게 옷만 찍어요.</p>
+    <p class="small">인터넷 사진도 검사할 수 있어요: 태블릿은 사진을 길게 눌러 저장한 뒤 '사진 넣기'로, 컴퓨터는 사진을 복사(Ctrl+C)한 뒤 이 화면에서 붙여넣기(Ctrl+V).</p>
     <div id="s5Form" class="hidden">
       <img id="s5Preview" class="preview" alt="새로 찍은 사진">
+      <label class="webrow hidden" id="s5WebRow"><input type="checkbox" id="s5Web"> 인터넷에서 가져온 사진이에요 <span class="small">(선생님이 AI 학습에는 쓰지 않아요)</span></label>
       <label>이 사진의 옷 종류는?</label>
       <div class="choice" id="s5Label"></div>
       <label>어떤 점을 바꿔서 찍었나요? (여러 개 골라요)</label>
@@ -356,19 +369,21 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
     <div id="v2Area" class="hidden">
       <h3>① 사진 넣기</h3>
       <div class="actions"><button id="v2Mine" class="accent">3단계에서 틀린 사진 다시 검사하기</button></div>
-      <div class="camera"><span id="c6Msg">카메라를 켜거나 사진을 선택하세요.</span><video id="c6Video" autoplay playsinline muted class="hidden"></video></div>
+      <div class="camera"><span id="c6Msg">카메라를 켜거나 사진을 넣으세요.<br><small>사진을 여기로 끌어 놓아도 돼요</small></span><video id="c6Video" autoplay playsinline muted class="hidden"></video></div>
       <div class="actions">
         <button id="c6Start">카메라 켜기</button>
         <button id="c6Capture" class="primary" disabled>사진 촬영</button>
-        <button id="c6Choose">사진 선택 (여러 장)</button>
+        <button id="c6Choose">사진 넣기 (여러 장)</button>
         <input id="fileInput6" type="file" accept="image/*" multiple class="hidden">
       </div>
       <p class="small">내려받아 둔 틀린 사진(예: 상의01(1).jpg)을 고르면 이름에서 실제 옷 종류를 알아서 읽어요.</p>
+      <p class="small">인터넷 사진도 검사할 수 있어요: 태블릿은 사진을 길게 눌러 저장한 뒤 '사진 넣기'로, 컴퓨터는 사진을 복사(Ctrl+C)한 뒤 이 화면에서 붙여넣기(Ctrl+V).</p>
       <h3>② 처음 AI(v1) → 고친 AI(v2)</h3>
       <!-- 사진 종류(배운 사진/처음 보는 사진)별로 v1→v2 변화 네 가지를 센 표 -->
       <table id="v2Sum">
         <tr><th>사진 종류</th><th>검사</th><th>좋아졌어요</th><th>오히려 틀림</th><th>둘 다 맞음</th><th>아직 틀림</th></tr>
       </table>
+      <p class="small" id="v2Prog"></p>
       <div id="v2List"></div>
       <div class="notice" style="margin-top:12px"><b>생각해 볼 질문</b>
         <ul>
@@ -378,7 +393,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
           <li>v2도 틀린 사진이 있다면, 다음 v3를 만들 때 어떤 사진을 더 넣어야 할까요?</li>
         </ul>
       </div>
-      <label for="v2Reflect">4단계에서 생각한 고치는 방법이 효과가 있었나요? 왜 그렇게 생각하나요?</label>
+      <label for="v2Reflect">전체 정리 (선택): 사진들을 비교하며 알게 된 점을 적어요</label>
       <textarea id="v2Reflect" maxlength="500" placeholder="예: 어두운 곳 양말 사진을 넣었더니 v2는 양말이라고 맞혔어요. 그런데 구겨진 상의는 아직 틀려요."></textarea>
       <div class="actions">
         <button class="accent" id="v2Csv">v2 확인 기록 CSV</button>
@@ -403,6 +418,31 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
         <a class="btn" id="postSubmitLink" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
       </div>
       <div class="actions"><button id="postEdit">답 고치기</button></div>
+      <p class="small" style="margin:8px 0 0">다 올렸으면 <b>다음 단계</b>에서 내가 얼마나 자랐는지 확인해요.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── 8. 나의 성장: 사전·사후 학습지 비교 ───────── -->
+<section class="step" data-step="8">
+  <div class="card">
+    <h2>8단계 · 나는 얼마나 자랐을까?</h2>
+    <p class="hint">사전 학습지와 사후 학습지를 나란히 놓고, 내 생각하는 힘이 어떻게 달라졌는지 봐요. 파일은 이 기기 안에서만 열려요.</p>
+    <div class="notice" id="g8Need"></div>
+    <div class="actions">
+      <button id="g8PreBtn">사전 학습지 결과 파일 불러오기</button>
+      <button id="g8PostBtn">사후 학습지 결과 파일 불러오기</button>
+      <input id="g8PreFile" type="file" accept=".csv,text/csv" class="hidden">
+      <input id="g8PostFile" type="file" accept=".csv,text/csv" class="hidden">
+    </div>
+    <div id="g8Out"></div>
+    <div id="g8Reflect" class="hidden">
+      <label for="g8Text">가장 많이 자란 점은 무엇인가요? 앞으로 더 키우고 싶은 힘은?</label>
+      <textarea id="g8Text" maxlength="400" placeholder="예: 처음엔 AI가 틀리면 그냥 다시 찍었는데, 이제는 왜 틀렸는지 먼저 생각해요."></textarea>
+      <div class="actions">
+        <button class="accent" id="g8Csv">나의 성장 기록 다운로드</button>
+        <a class="btn" id="g8Padlet" target="_blank" rel="noopener">패들렛에 올리러 가기</a>
+      </div>
     </div>
   </div>
 </section>
@@ -527,7 +567,11 @@ const PRE_EXTRA = [
   { id:"B2", key:"티처블머신경험", area:"BG", type:"choice", text:"티처블 머신을 사용해 본 적이 있나요?",
     options:{ a:"처음 들어 봐요", b:"들어 봤지만 써 본 적은 없어요", c:"써 본 적 있어요" } }
 ];
+// 사후에만 묻는 문항. R3은 6단계 경험(같은 사진, 다른 답)을 이해했는지 보는 문제라 정답이 있지만
+// 사전에는 없던 문항이므로 '문제해결점수(S1-5)'에는 넣지 않고 따로 기록한다
 const POST_EXTRA = [
+  { id:"R3", key:"데이터이해", area:"REF", type:"choice", answer:"b", text:"6단계에서 같은 사진인데 처음 AI(v1)와 고친 AI(v2)의 답이 달라졌어요. 가장 큰 까닭은 무엇일까요?",
+    options:{ a:"AI의 프로그램(코드)을 새로 바꿔서", b:"AI에게 가르친 사진(데이터)이 달라져서", c:"사진을 다른 날 보여 줘서", d:"AI가 그날 기분이 달라서" } },
   { id:"R1", key:"도움된단계", area:"REF", type:"choice", text:"생각하는 힘을 키우는 데 가장 도움이 된 활동은 무엇인가요?",
     options:{ a:"AI의 답을 예측하고 사진 찍기 (3단계)", b:"AI가 틀린 이유 추리하기 (4단계)", c:"계획대로 새 사진 찍기 (5단계)", d:"고친 AI로 확인하기 (6단계)" } },
   { id:"R2", key:"나의해결순서", area:"REF", type:"text", optional:true, text:"앞으로 AI가 틀린 답을 내면, 나는 어떤 순서로 해결할지 적어 보세요. (선택)" }
@@ -552,10 +596,14 @@ const S = {
   errCount: { 상의:0, 하의:0, 양말:0 },  // 틀린 사진 번호 매기기용 (옷 종류별)
   newCount: { 상의:0, 하의:0, 양말:0 }   // 새 사진 번호 매기기용 (지워도 번호가 겹치지 않게 계속 증가)
 };
-const unsaved = { pre:false, post:false, trials:false, debug:false, photos:false, v2:false };  // 아직 다운로드 안 한 기록
+const unsaved = { pre:false, post:false, trials:false, debug:false, photos:false, v2:false, growth:false };  // 아직 다운로드 안 한 기록
 let current = 0, model = null, stream = null;
-let cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null };
-let cur5 = { photo:null, label:null };
+let cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null, src:"" };
+// 사진 출처: camera = 카메라, file = 기기 안 사진(직접 찍었거나 다운로드), paste = 붙여넣기
+// 인터넷 사진은 저작권 때문에 AI 학습에 쓰지 않도록 파일 이름에 _인터넷 을 붙인다
+const srcName = (src, web) => web ? "인터넷 사진" : src === "camera" ? "카메라" : "기기 사진";
+function showWebBox(id, src){ $(id + "Row").classList.toggle("hidden", src === "camera"); $(id).checked = src === "paste"; }
+let cur5 = { photo:null, label:null, src:"" };
 
 /* =========================================================
    4. 공통 도우미 함수
@@ -596,7 +644,7 @@ function choiceButtons(boxId, onPick, list = CLASSES){
 /* =========================================================
    5. 단계 이동
    ========================================================= */
-const STEPS = [[0,"시작"],[1,"사전 학습지"],[2,"티처블 머신"],[3,"AI 실험"],[4,"디버깅"],[5,"새 사진"],[6,"고친 AI 확인"],[7,"사후 학습지"]];
+const STEPS = [[0,"시작"],[1,"사전 학습지"],[2,"티처블 머신"],[3,"AI 실험"],[4,"디버깅"],[5,"새 사진"],[6,"고친 AI 확인"],[7,"사후 학습지"],[8,"나의 성장"]];
 function stepDone(n){
   if (n === 0) return !!S.code;
   if (n === 1) return S.pre.submitted;
@@ -605,6 +653,7 @@ function stepDone(n){
   if (n === 5) return S.newPhotos.length > 0;
   if (n === 6) return V2.some(i => i.v2);
   if (n === 7) return S.post.submitted;
+  if (n === 8) return !!(growthPre() && growthPost());
   return false;
 }
 function renderStepper(){
@@ -618,16 +667,17 @@ function go(n){
   stopStream();   // 단계를 옮기면 카메라는 끈다
   current = n;
   document.querySelectorAll(".step").forEach(s => s.classList.toggle("active", s.dataset.step === String(n)));
-  $("prevBtn").disabled = n === 0; $("nextBtn").disabled = n === 7;
+  $("prevBtn").disabled = n === 0; $("nextBtn").disabled = n === 8;
   if (n === 2 && !$("ytFrame").src) $("ytFrame").src = `https://www.youtube-nocookie.com/embed/${VIDEO_ID}?rel=0&playsinline=1`;
   if (n === 4) renderDebug();
   if (n === 5) renderPlan();
-  if (n === 6 && !modelV2) loadV2();   // 6단계에 올 때마다 v2가 올라왔는지 확인
+  if (n === 6 && !modelV2) loadV2();
+  if (n === 8) renderGrowth();   // 6단계에 올 때마다 v2가 올라왔는지 확인
   renderStepper(); centerStepper();
   window.scrollTo({ top:0, behavior:"smooth" });
 }
 $("prevBtn").onclick = () => go(Math.max(0, current - 1));
-$("nextBtn").onclick = () => go(Math.min(7, current + 1));
+$("nextBtn").onclick = () => go(Math.min(8, current + 1));
 
 /* =========================================================
    6. 0단계: 번호 적기
@@ -678,8 +728,11 @@ function renderSurvey(phase){
     if (group !== prevArea) { html += `<div class="sec">${AREA[group]}</div>`; prevArea = group; }
     let body;
     if (q.type === "likert") {
-      // 0~5 수직선: 점을 눌러 고른다
-      body = `<div class="scale"><div class="line"></div>${[0,1,2,3,4,5].map(v => `<button type="button" ${dis} class="pt ${st.answers[q.id] === v ? "selected" : ""}" data-q="${q.id}" data-v="${v}" aria-label="${v}점"><i></i><span>${v}</span></button>`).join("")}</div><div class="scale-ends"><span>전혀 그렇지 않아요</span><span>매우 그래요</span></div>`;
+      // 0~5 수직선: 점을 눌러 고른다 (key = 답을 저장할 이름)
+      const scale = key => `<div class="scale"><div class="line"></div>${[0,1,2,3,4,5].map(v => `<button type="button" ${dis} class="pt ${st.answers[key] === v ? "selected" : ""}" data-q="${key}" data-v="${v}" aria-label="${v}점"><i></i><span>${v}</span></button>`).join("")}</div><div class="scale-ends"><span>전혀 그렇지 않아요</span><span>매우 그래요</span></div>`;
+      body = scale(q.id);
+      // 사후에는 '활동 전의 나'를 돌아보는 척도를 하나 더 묻는다 (회고식 사전 문항, 이름 뒤에 _전)
+      if (phase === "post") body = `<div class="when">지금의 나</div>${body}<div class="when">활동을 시작하기 전의 나는 몇 점이었을까?</div>${scale(q.id + "_전")}`;
     } else if (q.type === "text") {
       body = `<textarea data-q="${q.id}" maxlength="300" ${dis} placeholder="예: 먼저 틀린 사진을 모으고, 공통점을 찾아요.">${esc(st.answers[q.id] || "")}</textarea>`;
     } else {
@@ -698,8 +751,8 @@ function bindSurvey(phase){
   // 버튼을 누르면 답을 저장하고, 같은 문항의 다른 버튼은 선택 해제
   box.addEventListener("click", e => {
     const b = e.target.closest("button[data-q]"); if (!b || st.submitted) return;
-    const q = surveyItems(phase).find(x => x.id === b.dataset.q);
-    st.answers[q.id] = q.type === "likert" ? +b.dataset.v : b.dataset.v;
+    const key = b.dataset.q, q = surveyItems(phase).find(x => x.id === key.replace(/_전$/, ""));   // Q1_전 → Q1 문항
+    st.answers[key] = q.type === "likert" ? +b.dataset.v : b.dataset.v;
     b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("selected", x === b));
     $(phase + "_" + q.id).classList.remove("missing");
     unsaved[phase] = true;
@@ -707,7 +760,9 @@ function bindSurvey(phase){
   box.addEventListener("input", e => { if (e.target.dataset.q) { st.answers[e.target.dataset.q] = e.target.value; unsaved[phase] = true; } });
   // 제출: 빠진 문항이 있으면 테두리 표시 + 그 문항으로 이동
   $(phase + "Submit").onclick = () => {
-    const missing = surveyItems(phase).filter(q => !q.optional && (st.answers[q.id] === undefined || st.answers[q.id] === ""));
+    const empty = k => st.answers[k] === undefined || st.answers[k] === "";
+    // 사후의 0~5 문항은 '지금의 나'와 '활동 전의 나' 둘 다 골라야 한다
+    const missing = surveyItems(phase).filter(q => !q.optional && (empty(q.id) || (phase === "post" && q.type === "likert" && empty(q.id + "_전"))));
     surveyItems(phase).forEach(q => $(phase + "_" + q.id).classList.toggle("missing", missing.includes(q)));
     if (missing.length) { alert(`아직 답하지 않은 문항이 ${missing.length}개 있어요.`); $(phase + "_" + missing[0].id).scrollIntoView({ behavior:"smooth", block:"center" }); return; }
     st.submitted = true; st.time = new Date().toISOString();
@@ -730,17 +785,22 @@ function surveyCsv(phase){
   const st = S[phase], a = st.answers;
   const head = ["학년","반","학생코드","시점","제출시각"], row = [S.grade || "", S.cls || "", S.code, phase === "pre" ? "사전" : "사후", st.time];
   surveyItems(phase).forEach(q => {
-    if (q.type === "likert") { head.push(`${q.id}_${q.key}`); row.push(a[q.id]); }
+    if (q.type === "likert") { head.push(`${q.id}_${q.key}`); row.push(a[q.id]);
+      if (phase === "post") { head.push(`${q.id}_${q.key}_활동전`); row.push(a[q.id + "_전"]); } }   // 회고식 사전 점수
     else if (q.type === "mc") {
       head.push(`${q.id}_${q.key}_응답`, `${q.id}_${q.key}_점수`); row.push(NUM[a[q.id]] + " " + q.options[a[q.id]], a[q.id] === q.answer ? 1 : 0);
       if (q.reason) { head.push(`${q.id}_${q.key}_이유`); row.push(a[q.id + "_이유"] || ""); }
     }
-    else if (q.type === "choice") { head.push(`${q.id}_${q.key}`); row.push(q.options[a[q.id]] || ""); }
+    else if (q.type === "choice") { head.push(`${q.id}_${q.key}`); row.push(q.options[a[q.id]] || "");
+      if (q.answer) { head.push(`${q.id}_${q.key}_정답여부`); row.push(a[q.id] === q.answer ? 1 : 0); } }
     else { head.push(`${q.id}_${q.key}`); row.push(a[q.id] || ""); }
   });
   const sc = scores(a, phase);
   head.push("CT평균(Q1-4)","디버깅평균(Q5-6)","TM활용평균(Q7-8)","자기평가평균(Q1-8)","문제해결점수(S1-5)");
   row.push(sc.ct, sc.dbg, sc.tm, sc.self, sc.solve);
+  // 회고 평균은 교사용 도구가 사전·사후 짝 비교 열로 착각하지 않게 '평균(' 이라는 말을 쓰지 않는다
+  if (phase === "post") { const ids = LIKERT_ITEMS.map(q => q.id + "_전");
+    head.push("활동전회고_자기평가(Q1-8)"); row.push((ids.reduce((s, k) => s + (a[k] || 0), 0) / ids.length).toFixed(2)); }
   return toCsv([head, row]);
 }
 
@@ -754,6 +814,7 @@ function stopStream(){
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
   ["c3","c5","c6"].forEach(p => {
+    $(p + "Start").textContent = "카메라 켜기";   // 꺼지면 버튼 글자도 원래대로
     $(p + "Video").classList.add("hidden"); $(p + "Msg").classList.remove("hidden");
     $(p + "Capture").disabled = true; $(p + "Capture").textContent = "사진 촬영";
     if ($(p + "Flip")) $(p + "Flip").disabled = true;
@@ -779,9 +840,12 @@ function setupCamera(p, fileId, onPhoto){
     video.style.transform = facing === "user" ? "scaleX(-1)" : "";   // 앞쪽 카메라는 거울처럼 보여 줌 (찍힌 사진은 뒤집지 않음)
     video.classList.remove("hidden"); $(p + "Msg").classList.add("hidden");
     $(p + "Capture").disabled = false; $(p + "Flip").disabled = false;
+    $(p + "Start").textContent = "카메라 끄기";
     await video.play();
   }
+  // 같은 버튼으로 켜고 끈다: 이 단계 카메라가 켜져 있으면 끄기
   $(p + "Start").onclick = async () => {
+    if (stream && !video.classList.contains("hidden")) { stopStream(); return; }
     try { await open({ facingMode:{ ideal:facing } }); }   // 처음엔 뒤쪽 카메라 우선
     catch (e) { alert("카메라를 켤 수 없어요. 카메라 권한을 허용했는지 확인하거나 '사진 선택'을 이용해 주세요."); }
   };
@@ -801,7 +865,7 @@ function setupCamera(p, fileId, onPhoto){
     }
   };
   // 사진 촬영: 타이머가 켜져 있으면 숫자를 센 뒤 찍는다. 세는 중에 다시 누르면 취소
-  const snap = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight)); };
+  const snap = () => { if (video.videoWidth) onPhoto(squareFrom(video, video.videoWidth, video.videoHeight), undefined, "camera"); };
   $(p + "Capture").onclick = () => {
     if (camTimer) { clearInterval(camTimer); camTimer = null; count.classList.add("hidden"); $(p + "Capture").textContent = "사진 촬영"; return; }
     let left = +$(p + "Timer").value;
@@ -815,17 +879,34 @@ function setupCamera(p, fileId, onPhoto){
     }, 1000);
   };
   $(p + "Choose").onclick = () => $(fileId).click();
-  // 고른 사진마다 정사각형으로 맞춰 onPhoto(사진, 파일이름)에 넘긴다 (6단계는 여러 장 가능)
-  $(fileId).onchange = e => {
-    const files = [...e.target.files]; e.target.value = "";
-    files.forEach(f => {
-      if (!f.type.startsWith("image/")) { alert("이미지 파일을 선택해 주세요."); return; }
-      const r = new FileReader();
-      r.onload = () => { const img = new Image(); img.onload = () => onPhoto(squareFrom(img, img.naturalWidth, img.naturalHeight), f.name); img.src = r.result; };
-      r.readAsDataURL(f);
-    });
+  // 고른 사진마다 정사각형으로 맞춰 onPhoto(사진, 파일이름, 출처)에 넘긴다 (6단계는 여러 장 가능)
+  const takeFiles = files => {
+    files = files.filter(f => f.type.startsWith("image/"));
+    if (!files.length) return alert("이미지 파일을 넣어 주세요.");
+    (cam.dataset.multi ? files : files.slice(0, 1)).forEach(f => readImage(f, d => onPhoto(d, f.name, "file")));
   };
+  $(fileId).onchange = e => { const files = [...e.target.files]; e.target.value = ""; takeFiles(files); };
+  if ($(fileId).multiple) cam.dataset.multi = "1";
+  // 카메라 칸에 사진 파일을 끌어 놓아도 넣을 수 있다
+  cam.ondragover = e => { e.preventDefault(); cam.classList.add("over"); };
+  cam.ondragleave = () => cam.classList.remove("over");
+  cam.ondrop = e => { e.preventDefault(); cam.classList.remove("over"); takeFiles([...e.dataTransfer.files]); };
+  // 컴퓨터에서 복사(Ctrl+C)한 사진을 이 단계 화면에서 붙여넣기(Ctrl+V)
+  pasteHandlers[+p.slice(1)] = d => onPhoto(d, undefined, "paste");
 }
+// 사진 파일 하나를 읽어 가운데 정사각형으로 맞춘다 (기기 안에서만)
+function readImage(file, done){
+  const r = new FileReader();
+  r.onload = () => { const img = new Image(); img.onload = () => done(squareFrom(img, img.naturalWidth, img.naturalHeight)); img.src = r.result; };
+  r.readAsDataURL(file);
+}
+const pasteHandlers = {};   // 단계 번호 → 붙여넣은 사진을 받을 함수
+document.addEventListener("paste", e => {
+  const h = pasteHandlers[current]; if (!h) return;
+  const it = [...((e.clipboardData && e.clipboardData.items) || [])].find(i => i.type.startsWith("image/"));
+  if (!it) return;   // 글자 붙여넣기는 그대로 둔다
+  e.preventDefault(); readImage(it.getAsFile(), h);
+});
 
 /* =========================================================
    9. 3단계: AI 실험 (내 예측 → AI 판단 → 실제 정답)
@@ -849,11 +930,11 @@ async function loadModel(){
 }
 function updateAsk(){ $("s3Ask").disabled = !(model && cur3.photo && cur3.guess); }
 function resetTrial(){
-  cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null };
+  cur3 = { photo:null, guess:null, preds:null, aiLabel:null, conf:0, actual:null, src:"" };
   $("s3Flow").classList.add("hidden"); $("s3Result").classList.add("hidden"); updateAsk();
 }
-setupCamera("c3", "fileInput3", d => {
-  resetTrial(); cur3.photo = d;
+setupCamera("c3", "fileInput3", (d, name, src) => {
+  resetTrial(); cur3.photo = d; cur3.src = src; showWebBox("s3Web", src);
   $("s3Preview").src = d; $("s3Flow").classList.remove("hidden");
   // 학생은 AI가 '잘 모르겠어요'라고 할 것도 예측할 수 있다
   choiceButtons("s3Guess", v => { cur3.guess = v; updateAsk(); }, [...CLASSES, UNSURE]);
@@ -906,11 +987,12 @@ $("s3Save").onclick = () => {
   // 예) 1번 학생: 상의01(1).jpg, 상의01(2).jpg / 24번 학생: 상의24(1).jpg
   // 맨 앞이 실제 옷 이름이라 eval.html에 그대로 넣어도 정답을 자동으로 읽는다
   let file = "";
-  if (!aiCorrect) { S.errCount[cur3.actual]++; file = `${cur3.actual}${S.code}(${S.errCount[cur3.actual]}).jpg`; }
+  const web = cur3.src !== "camera" && $("s3Web").checked;
+  if (!aiCorrect) { S.errCount[cur3.actual]++; file = `${cur3.actual}${S.code}(${S.errCount[cur3.actual]})${web ? "_인터넷" : ""}.jpg`; }
   S.trials.push({
     id: S.trials.length + 1, time: new Date().toISOString(), image: cur3.photo, file,
     guess: cur3.guess, aiLabel: cur3.aiLabel, conf: cur3.conf, preds: cur3.preds, actual: cur3.actual,
-    aiCorrect, guessCorrect: cur3.guess === cur3.aiLabel,
+    aiCorrect, guessCorrect: cur3.guess === cur3.aiLabel, web, source: srcName(cur3.src, web),
     debug: { causes:[], why:"", howPhoto:"", fixes:[], fixText:"" }
   });
   unsaved.trials = true; if (!aiCorrect) unsaved.debug = true;
@@ -931,8 +1013,8 @@ function renderTrials(){
     : '<p class="hint">AI가 틀린 사진이 여기에 모여요.</p>';
 }
 function trialsCsv(list){
-  const h = ["기록번호","시각","학년","반","학생코드","파일이름","내예측(AI가 뭐라고 할지)","AI판단","AI최고확률","실제종류","AI정오","내예측정오","전체확률"];
-  return toCsv([h, ...list.map(t => [t.id, t.time, S.grade || "", S.cls || "", S.code, t.file, t.guess, t.aiLabel, pct(t.conf), t.actual, t.aiCorrect ? "정답" : "오류", t.guessCorrect ? "맞힘" : "못 맞힘", t.preds.map(p => p.label + ":" + pct(p.probability)).join("; ")])]);
+  const h = ["기록번호","시각","학년","반","학생코드","파일이름","내예측(AI가 뭐라고 할지)","AI판단","AI최고확률","실제종류","AI정오","내예측정오","전체확률","출처"];
+  return toCsv([h, ...list.map(t => [t.id, t.time, S.grade || "", S.cls || "", S.code, t.file, t.guess, t.aiLabel, pct(t.conf), t.actual, t.aiCorrect ? "정답" : "오류", t.guessCorrect ? "맞힘" : "못 맞힘", t.preds.map(p => p.label + ":" + pct(p.probability)).join("; "), t.source || ""])]);
 }
 // 틀린 사진만 ZIP 하나로 묶기 (파일 이름에 학생 번호가 들어가 친구 것과 겹치지 않음)
 $("s3Zip").onclick = async () => {
@@ -1009,21 +1091,22 @@ function renderPlan(){
   const how = err.filter(t => t.debug.howPhoto.trim()).map(t => `<li>${esc(t.file.replace(".jpg", ""))}: ${esc(t.debug.howPhoto)}</li>`).join("");
   $("s5Plan").innerHTML = `<b>내가 세운 디버깅 계획</b>${top.length ? `<ul>${top.map(([f, n]) => `<li>${esc(f)} (${n})</li>`).join("")}</ul>` : ""}${how ? `<b style="display:block;margin-top:6px">다시 찍을 사진</b><ul>${how}</ul>` : ""}`;
 }
-setupCamera("c5", "fileInput5", d => {
-  cur5 = { photo:d, label:null };
+setupCamera("c5", "fileInput5", (d, name, src) => {
+  cur5 = { photo:d, label:null, src }; showWebBox("s5Web", src);
   $("s5Preview").src = d; $("s5Form").classList.remove("hidden"); $("s5Memo").value = "";
   $("s5Strats").innerHTML = STRATS.map(t => `<label><input type="checkbox" value="${esc(t)}">${esc(t)}</label>`).join("");
   choiceButtons("s5Label", v => { cur5.label = v; $("s5Add").disabled = false; });
   $("s5Add").disabled = true;
   $("s5Form").scrollIntoView({ behavior:"smooth", block:"start" });
 });
-function closeForm5(){ cur5 = { photo:null, label:null }; $("s5Form").classList.add("hidden"); }
+function closeForm5(){ cur5 = { photo:null, label:null, src:"" }; $("s5Form").classList.add("hidden"); }
 $("s5Cancel").onclick = closeForm5;
 $("s5Add").onclick = () => {
   if (!cur5.photo || !cur5.label) return;
   S.newCount[cur5.label]++;
+  const web = cur5.src !== "camera" && $("s5Web").checked;
   S.newPhotos.push({ id: Date.now(), time:new Date().toISOString(), label:cur5.label,
-    file: `${cur5.label}${S.code}_새(${S.newCount[cur5.label]}).jpg`,   // 예) 양말01_새(3).jpg (틀린 사진과 이름이 겹치지 않게 '_새')
+    file: `${cur5.label}${S.code}_새(${S.newCount[cur5.label]})${web ? "_인터넷" : ""}.jpg`, source: srcName(cur5.src, web),   // 예) 양말01_새(3).jpg (틀린 사진과 이름이 겹치지 않게 '_새')
     strats:[...document.querySelectorAll("#s5Strats input:checked")].map(x => x.value), memo:$("s5Memo").value.trim(), image:cur5.photo });
   unsaved.photos = true; closeForm5(); renderNewPhotos(); renderStepper();
 };
@@ -1037,8 +1120,8 @@ $("s5Gallery").addEventListener("click", e => { const b = e.target.closest("[dat
 // 옷 종류별 폴더로 나눠 ZIP (티처블 머신 클래스에 바로 올릴 수 있게)
 $("s5Zip").onclick = async () => {
   if (!S.newPhotos.length) return alert("아직 추가한 사진이 없어요.");
-  const z = new JSZip(), rows = [["파일이름","학년","반","학생코드","옷종류","바꾼점","설명"]];
-  S.newPhotos.forEach(p => { z.file(`새사진_${tag()}/${p.label}/${p.file}`, b64(p.image), { base64:true }); rows.push([p.file, S.grade || "", S.cls || "", S.code, p.label, p.strats.join("; "), p.memo]); });
+  const z = new JSZip(), rows = [["파일이름","학년","반","학생코드","옷종류","바꾼점","설명","출처"]];
+  S.newPhotos.forEach(p => { z.file(`새사진_${tag()}/${p.label}/${p.file}`, b64(p.image), { base64:true }); rows.push([p.file, S.grade || "", S.cls || "", S.code, p.label, p.strats.join("; "), p.memo, p.source || ""]); });
   z.file(`새사진_${tag()}/새사진기록_${tag()}.csv`, toCsv(rows));
   saveBlob(await z.generateAsync({ type:"blob" }), `새사진_${tag()}.zip`); unsaved.photos = false;
 };
@@ -1078,7 +1161,7 @@ const labelFromName = n => { const m = String(n || "").normalize("NFC").match(/^
 // 6단계에서 카메라로 새로 찍은 사진은 v2가 처음 보는 사진이므로 false
 async function addV2(image, name, actual, v1, key, seen){
   if (key && V2.some(x => x.key === key)) return;   // 같은 사진을 두 번 넣지 않기
-  const it = { id: V2.length + 1, key, image, name: name || `새로 찍은 사진${V2.length + 1}`, actual, v1, v2:null, seen };
+  const it = { id: V2.length + 1, key, image, name: name || `새로 찍은 사진${V2.length + 1}`, actual, v1, v2:null, seen, why:[], fix:[], memo:"" };
   V2.push(it); renderV2();
   if (!it.v1 && model) it.v1 = await judge(model, image);
   if (modelV2) it.v2 = await judge(modelV2, image);
@@ -1086,10 +1169,11 @@ async function addV2(image, name, actual, v1, key, seen){
 }
 $("v2Mine").onclick = () => {
   const err = errors(); if (!err.length) return alert("이 기기에 남아 있는 3단계 틀린 사진이 없어요. 내려받아 둔 사진을 '사진 선택'으로 넣어 주세요.");
-  err.forEach(t => addV2(t.image, t.file, t.actual, { label:t.aiLabel, conf:t.conf, probs:probMap(t.preds) }, "t" + t.id, true));
+  err.forEach(t => addV2(t.image, t.file, t.actual, { label:t.aiLabel, conf:t.conf, probs:probMap(t.preds) }, "t" + t.id, !t.web));
 };
 // 파일 이름이 '상의…/하의…/양말…'로 시작하면 내려받아 둔 틀린 사진·새 사진 → 배운 사진, 그 밖(카메라 등)은 처음 보는 사진
-setupCamera("c6", "fileInput6", (d, name) => addV2(d, name, labelFromName(name), null, name ? "f" + name : null, !!labelFromName(name)));
+setupCamera("c6", "fileInput6", (d, name, src) => addV2(d, name || (src === "paste" ? "붙여넣은 사진" : null), labelFromName(name), null, name ? "f" + name : null,
+  !!labelFromName(name) && !/_인터넷/.test(name)));   // 상의01(1).jpg 같은 이름(인터넷 사진 제외) = v2가 배운 사진
 function verdict(it){
   if (!it.actual || !it.v2) return "";
   const ok1 = it.v1 && it.v1.label === it.actual, ok2 = it.v2.label === it.actual;
@@ -1103,6 +1187,27 @@ function kindOf(it){
   if (!it.actual || !it.v2) return null;
   const ok1 = it.v1 && it.v1.label === it.actual, ok2 = it.v2.label === it.actual;
   return !ok1 && ok2 ? "better" : ok1 && !ok2 ? "worse" : ok1 ? "both" : "still";
+}
+// 사진마다 '왜 그랬을까'와 'v3에서 고칠 점'을 고르게 한다. 결과(좋아짐·오히려 틀림·아직 틀림)마다 선택지가 다르다
+const WHY_Q = { better:"왜 좋아졌을까? (여러 개 골라요)", worse:"v1은 맞혔는데 v2는 왜 틀렸을까? (여러 개 골라요)", still:"v1도 v2도 왜 틀렸을까? (여러 개 골라요)" };
+const WHY = {
+  better:["비슷한 사진을 더 가르쳐 줘서","밝기가 다른 사진을 넣어서","배경이 다른 사진을 넣어서","거리·각도가 다른 사진을 넣어서","구겨지거나 접힌 사진을 넣어서","잘 모르겠어요"],
+  worse:["다른 옷 사진을 많이 넣어서 헷갈린 것 같아요","색이 비슷한 다른 옷을 배워서","옷이 너무 가까이 찍혀 모양이 안 보여서","배경이 다른 옷 사진과 비슷해서","무늬나 색이 특이해서","잘 모르겠어요"],
+  still:["비슷한 사진을 아직 덜 가르쳐서","색이나 무늬가 특이해서","옷의 일부만 보여서","너무 어둡거나 밝아서","배경이 복잡해서","다른 옷과 모양이 비슷해서","잘 모르겠어요"]
+};
+const V3FIX = ["이 옷 종류 사진을 더 넣기","이런 색·무늬 옷 사진 넣기","옷 전체가 보이게 찍은 사진 넣기","여러 배경에서 찍은 사진 넣기","밝기가 다른 사진 넣기","헷갈리게 만드는 사진 빼기","세 종류 사진 수를 비슷하게 맞추기"];
+function reasonBox(it){
+  const k = kindOf(it); if (!k) return "";
+  if (k === "both") return '<p class="small" style="margin:8px 0 0">두 AI 모두 잘 맞혔어요. 다음 사진을 볼까요?</p>';
+  const chips = (list, sel, f) => `<div class="chips">${list.map(t => `<label><input type="checkbox" data-f="${f}" value="${esc(t)}" ${sel.includes(t) ? "checked" : ""}>${esc(t)}</label>`).join("")}</div>`;
+  return `<label>${WHY_Q[k]}</label>${chips(WHY[k], it.why, "why")}` +
+    (k === "better" ? "" : `<label>v3를 만든다면 무엇을 고칠까? (여러 개 골라요)</label>${chips(V3FIX, it.fix, "fix")}`) +
+    `<input data-f="memo" maxlength="150" placeholder="더 적고 싶은 생각 (선택)" value="${esc(it.memo)}" style="margin-top:8px">`;
+}
+// 이유를 하나라도 고른 사진 수 (둘 다 맞은 사진은 고를 필요 없음)
+function updateV2Progress(){
+  const need = V2.filter(i => kindOf(i) && kindOf(i) !== "both"), done = need.filter(i => i.why.length).length;
+  $("v2Prog").textContent = need.length ? `이유를 고른 사진 ${done} / ${need.length}장 (둘 다 맞은 사진은 빼고)` : "";
 }
 // 실제 옷의 확률: v1 → v2로 얼마나 바뀌었는지 (같은 사진인데 숫자가 달라지는 것을 보여 줌)
 const realProb = (r, actual) => r && r.probs && actual ? pct(r.probs[actual] || 0) : "-";
@@ -1124,26 +1229,140 @@ function renderV2(){
           <tr><th>AI의 답</th><td>${show(i.v1)}</td><td>${show(i.v2)}</td></tr>
           ${i.actual ? `<tr><th>${esc(i.actual)}일 확률</th><td>${realProb(i.v1, i.actual)}</td><td>${realProb(i.v2, i.actual)}</td></tr>` : ""}</table>
         ${verdict(i) ? `<div class="feedback ${verdict(i).startsWith("좋아") || verdict(i).startsWith("v1도") ? "ok" : "no"}">${verdict(i)}</div>` : ""}
+        ${reasonBox(i)}
       </div>
     </div>`).join("");
+  updateV2Progress();
 }
 $("v2List").addEventListener("click", e => { const b = e.target.closest("[data-act]"); if (!b) return;
-  const it = V2.find(x => x.id === +b.closest("[data-v2]").dataset.v2); it.actual = b.dataset.act; unsaved.v2 = true; renderV2(); });
+  const it = V2.find(x => x.id === +b.closest("[data-v2]").dataset.v2); it.actual = b.dataset.act; it.why = []; it.fix = []; unsaved.v2 = true; renderV2(); });
+// 고르거나 적을 때마다 그 사진 기록에 바로 저장 (화면을 다시 그리지 않아 입력이 끊기지 않음)
+function onV2Input(e){
+  const card = e.target.closest("[data-v2]"), f = e.target.dataset.f; if (!card || !f) return;
+  const it = V2.find(x => x.id === +card.dataset.v2);
+  if (e.target.type === "checkbox") it[f] = [...card.querySelectorAll(`input[data-f="${f}"]:checked`)].map(x => x.value);
+  else it[f] = e.target.value;
+  unsaved.v2 = true; updateV2Progress();
+}
+$("v2List").addEventListener("change", onV2Input);
+$("v2List").addEventListener("input", onV2Input);
 $("v2Csv").onclick = () => {
   if (!V2.length) return alert("아직 검사한 사진이 없어요.");
-  const rows = [["파일이름","학년","반","학생코드","사진종류","실제종류","v1판단","v1확률","v2판단","v2확률","v1실제옷확률","v2실제옷확률","결과"],
-    ...V2.map(i => [i.name, S.grade || "", S.cls || "", S.code, i.seen ? "배운 사진" : "처음 보는 사진", i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", realProb(i.v1, i.actual), realProb(i.v2, i.actual), verdict(i)]),
+  const rows = [["파일이름","학년","반","학생코드","사진종류","실제종류","v1판단","v1확률","v2판단","v2확률","v1실제옷확률","v2실제옷확률","결과","왜그랬을까","v3고칠점","메모"],
+    ...V2.map(i => [i.name, S.grade || "", S.cls || "", S.code, i.seen ? "배운 사진" : "처음 보는 사진", i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", realProb(i.v1, i.actual), realProb(i.v2, i.actual), verdict(i), i.why.join("; "), i.fix.join("; "), i.memo]),
     [], ["나의 생각", $("v2Reflect").value.trim()]];
   saveCsv(toCsv(rows), `v2확인_${tag()}.csv`); unsaved.v2 = false;
 };
 
+
 /* =========================================================
-   13. 시작할 때 한 번 실행
+   13. 8단계: 나의 성장 (사전·사후 학습지 비교)
+   - 같은 기기에서 오늘 제출한 학습지는 메모리에서 바로 쓰고,
+     다른 날 낸 학습지는 내려받아 둔 CSV 파일을 불러온다 (기기 안에서만 읽음)
+   ========================================================= */
+const G = { pre:null, post:null };   // 파일에서 불러온 사전·사후 결과
+// CSV 글자 → 2차원 배열 (따옴표 안의 쉼표·줄바꿈도 처리)
+function parseCsv(text){
+  text = text.replace(/^﻿/, "").normalize("NFC"); const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ",") { row.push(f); f = ""; }
+    else if (c === "\n") { row.push(f); rows.push(row); row = []; f = ""; } else if (c !== "\r") f += c; }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(v => v !== ""));
+}
+// 학습지 한 장을 비교하기 쉬운 모양으로: Q(0~5), retro(활동 전 회고), S(맞음 1/틀림 0), reason(이유 글)
+function profileFromMemory(phase){
+  const a = S[phase].answers, p = { Q:{}, retro:{}, S:{}, reason:{} };
+  LIKERT_ITEMS.forEach(q => { p.Q[q.id] = a[q.id]; if (a[q.id + "_전"] !== undefined) p.retro[q.id] = a[q.id + "_전"]; });
+  PROBLEMS[phase].forEach(q => { p.S[q.id] = a[q.id] === q.answer ? 1 : 0; if (q.reason) p.reason[q.id] = a[q.id + "_이유"] || ""; });
+  return p;
+}
+function profileFromCsv(text){
+  const rows = parseCsv(text); if (rows.length < 2) return null;
+  const h = rows[0], r = rows[1], get = n => r[h.indexOf(n)];
+  const p = { Q:{}, retro:{}, S:{}, reason:{}, phase:get("시점"), code:get("학생코드") };
+  h.forEach((col, i) => { let m;
+    if ((m = col.match(/^(Q\d)_[^_]+$/))) p.Q[m[1]] = +r[i];
+    else if ((m = col.match(/^(Q\d)_.+_활동전$/)) && r[i] !== "") p.retro[m[1]] = +r[i];
+    else if ((m = col.match(/^(S\d)_.+_점수$/))) p.S[m[1]] = +r[i];
+    else if ((m = col.match(/^(S\d)_.+_이유$/))) p.reason[m[1]] = r[i];
+  });
+  return Object.keys(p.Q).length ? p : null;
+}
+const growthPre = () => G.pre || (S.pre.submitted ? profileFromMemory("pre") : null);
+const growthPost = () => G.post || (S.post.submitted ? profileFromMemory("post") : null);
+// 파일 불러오기: 시점(사전/사후)과 번호가 맞는지 확인
+function loadGrowthFile(phase, file){
+  const r = new FileReader();
+  r.onload = () => {
+    const p = profileFromCsv(r.result), want = phase === "pre" ? "사전" : "사후";
+    if (!p) return alert("학습지 결과 파일이 아닌 것 같아요. '사전학습지_….csv' 같은 파일을 골라 주세요.");
+    if (p.phase && p.phase !== want) return alert(`이 파일은 ${p.phase} 학습지예요. ${want} 학습지 파일을 골라 주세요.`);
+    if (S.code && p.code && +p.code !== +S.code && !confirm(`파일 속 번호(${p.code}번)가 지금 번호(${S.code}번)와 달라요. 그래도 열까요?`)) return;
+    G[phase] = p; renderGrowth(); renderStepper();
+  };
+  r.readAsText(file, "utf-8");
+}
+$("g8PreBtn").onclick = () => $("g8PreFile").click();
+$("g8PostBtn").onclick = () => $("g8PostFile").click();
+$("g8PreFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) loadGrowthFile("pre", f); };
+$("g8PostFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) loadGrowthFile("post", f); };
+
+const AREAS8 = [["생각하는 힘", "나누기·규칙 찾기·핵심 고르기·순서 정하기", ["Q1","Q2","Q3","Q4"]],
+                ["디버깅하는 힘", "원인 찾기·한 가지씩 바꿔 확인하기", ["Q5","Q6"]],
+                ["AI 이해", "AI가 배우는 방법·티처블 머신 쓰기", ["Q7","Q8"]]];
+const SOLVE8 = { S1:"원인 추리하기", S2:"좋은 사진 모으기", S3:"블록 코드 고치기", S4:"배경 함정 찾기", S5:"한 가지씩 바꿔 확인하기" };
+const avgOf = (o, ids) => { const v = ids.map(i => o[i]).filter(x => typeof x === "number" && !isNaN(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+const bar = (label, v, color) => `<div class="gbar"><span>${label}</span><div class="gtrack"><i style="width:${v == null ? 0 : v / 5 * 100}%;background:${color}"></i></div><b>${v == null ? "-" : v.toFixed(1)}</b></div>`;
+function renderGrowth(){
+  const pre = growthPre(), post = growthPost();
+  $("g8Need").innerHTML = pre && post ? "사전·사후 학습지가 모두 준비됐어요."
+    : `${pre ? "사전 학습지 ✓" : "<b>사전 학습지가 필요해요.</b> 내려받아 둔 '사전학습지_….csv' 파일을 불러오세요. 없으면 선생님께 받아요."}<br>${post ? "사후 학습지 ✓" : "<b>사후 학습지가 필요해요.</b> 7단계에서 제출하거나, 내려받은 파일을 불러오세요."}`;
+  $("g8Reflect").classList.toggle("hidden", !(pre && post));
+  if (!pre || !post) { $("g8Out").innerHTML = ""; return; }
+  const hasRetro = Object.keys(post.retro).length > 0;
+  let html = "<h3>① 나는 이렇게 생각해요 (0~5)</h3>";
+  let ups = 0;
+  [...AREAS8, ["전체", "8문항 평균", ["Q1","Q2","Q3","Q4","Q5","Q6","Q7","Q8"]]].forEach(([name, sub, ids]) => {
+    const a = avgOf(pre.Q, ids), b = avgOf(post.Q, ids), r = hasRetro ? avgOf(post.retro, ids) : null, d = a != null && b != null ? b - a : null;
+    if (name !== "전체" && d > 0) ups++;
+    html += `<div class="garea"><b>${name}</b> <span class="small">${sub}</span>
+      ${hasRetro ? bar("활동 전(돌아보기)", r, "var(--line)") : ""}${bar("사전", a, "var(--y)")}${bar("사후", b, "var(--b)")}
+      <div class="small" style="margin-top:4px">${d == null ? "" : d > 0.05 ? `<span class="up">▲ ${d.toFixed(1)}점 자랐어요!</span>` : d < -0.05 ? `▼ ${(-d).toFixed(1)}점 내려갔어요. 괜찮아요, 활동을 하며 나를 더 정확하게 보게 되면 이럴 수 있어요.` : "비슷해요."}</div></div>`;
+  });
+  if (hasRetro) html += `<p class="small">'활동 전(돌아보기)'은 사후 학습지에서 "활동 전의 나는 몇 점이었을까?"에 답한 점수예요. 사전보다 낮다면, 활동을 해 보고 나서야 '처음엔 생각보다 잘 몰랐구나'를 알게 된 거예요.</p>`;
+  const ps = Object.values(pre.S).reduce((a, b) => a + b, 0), qs = Object.values(post.S).reduce((a, b) => a + b, 0);
+  html += `<h3>② 문제를 직접 풀어 봤어요 (5문제)</h3><p>사전 <b>${ps}</b>개 → 사후 <b>${qs}</b>개 맞힘 ${qs > ps ? '<span class="up">▲ 더 많이 맞혔어요!</span>' : qs === ps && qs === 5 ? "· 두 번 다 모두 맞혔어요!" : ""}</p>
+    <table><tr><th>문제</th><th>사전</th><th>사후</th></tr>${Object.keys(SOLVE8).map(k => `<tr><td>${SOLVE8[k]}</td><td>${pre.S[k] ? "⭕" : "❌"}</td><td>${post.S[k] ? "⭕" : "❌"}</td></tr>`).join("")}</table>
+    <p class="small">사전과 사후 문제는 상황만 바꾼 '쌍둥이 문제'예요.</p>`;
+  const rs = ["S3","S4","S5"].filter(k => (pre.reason[k] || "").trim() || (post.reason[k] || "").trim());
+  if (rs.length) html += `<h3>③ 내가 쓴 이유를 비교해 봐요</h3><table><tr><th>문제</th><th>사전에 쓴 이유</th><th>사후에 쓴 이유</th></tr>${rs.map(k => `<tr><td>${SOLVE8[k]}</td><td>${esc(pre.reason[k] || "(안 씀)")}</td><td>${esc(post.reason[k] || "(안 씀)")}</td></tr>`).join("")}</table>
+    <p class="small">이유가 더 구체적이 되었나요? '왜냐하면'을 써서 원인과 근거를 이었다면 생각하는 힘이 자란 거예요.</p>`;
+  html += `<div class="done-box">${ups ? `<b>${ups}개 영역에서 자랐어요.</b> ` : ""}점수보다 중요한 건, AI가 틀렸을 때 <b>원인을 추리하고 한 가지씩 고쳐 본 경험</b>이에요. 탐정 활동을 끝까지 해낸 나를 칭찬해요!</div>`;
+  $("g8Out").innerHTML = html;
+}
+$("g8Text").oninput = () => { unsaved.growth = true; };
+// 성장 기록 한 줄: 영역별 사전·사후·회고 점수 + 내가 쓴 글 (교사용 도구 ②에서 모을 수 있음)
+$("g8Csv").onclick = () => {
+  const pre = growthPre(), post = growthPost(); if (!pre || !post) return;
+  const head = ["학년","반","학생코드"], row = [S.grade || "", S.cls || "", S.code];
+  [...AREAS8, ["전체", "", ["Q1","Q2","Q3","Q4","Q5","Q6","Q7","Q8"]]].forEach(([name, , ids]) => {
+    const a = avgOf(pre.Q, ids), b = avgOf(post.Q, ids), r = avgOf(post.retro, ids);
+    head.push(`${name}_사전`, `${name}_사후`, `${name}_활동전회고`); row.push(a == null ? "" : a.toFixed(2), b == null ? "" : b.toFixed(2), r == null ? "" : r.toFixed(2));
+  });
+  head.push("문제풀이_사전", "문제풀이_사후", "가장자란점");
+  row.push(Object.values(pre.S).reduce((a, b) => a + b, 0), Object.values(post.S).reduce((a, b) => a + b, 0), $("g8Text").value.trim());
+  saveCsv(toCsv([head, row]), `나의성장_${tag()}.csv`); unsaved.growth = false;
+};
+
+/* =========================================================
+   14. 시작할 때 한 번 실행
    ========================================================= */
 $("thLabel").textContent = Math.round(THRESHOLD * 100) + "%";
 $("s3Tips").innerHTML = UNSURE_TIPS.map(t => `<li>${esc(t)}</li>`).join("");
 $("ytLink").href = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
-["s3Padlet","s4Padlet","s5Padlet","v2Padlet"].forEach(id => $(id).href = PADLET);
+["s3Padlet","s4Padlet","s5Padlet","v2Padlet","g8Padlet"].forEach(id => $(id).href = PADLET);
 bindSurvey("pre"); bindSurvey("post"); renderSurvey("pre"); renderSurvey("post");
 renderTrials(); renderNewPhotos();
 go(0);
