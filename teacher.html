@@ -3,73 +3,305 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>교사용 · 학습지 결과 모으기 | AI 옷장 탐정</title>
+<title>교사용 도구 | AI 옷장 탐정</title>
+<!-- 학생 ZIP을 풀고, 정리한 사진을 ZIP으로 묶기 위한 라이브러리 (브라우저 안에서만 동작) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- 반 링크 QR 코드 (불러오지 못하면 링크만 보여 줌) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{--bg:#FBF5E6;--y:#F2C14E;--y2:#FCE9B2;--y3:#FFF8E1;--b:#6B4423;--b2:#9A6B42;--ink:#3B2A1C;--muted:#8B7762;--line:#EADCBC}
 *{box-sizing:border-box}
 body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.5}
-.wrap{max-width:900px;margin:auto}
+.wrap{max-width:980px;margin:auto}
 .top{background:var(--y);color:var(--b);padding:18px 20px;border-radius:12px}
 .top h1{margin:0;font-size:21px}.top p{margin:4px 0 0;font-size:14px}
-.tabs{display:flex;gap:6px;margin-top:12px}.tabs a{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--b);text-decoration:none;font-weight:700;font-size:13px}.tabs a.on{background:var(--b);color:#fff;border-color:var(--b)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.tabs a,.tabs button{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--b);text-decoration:none;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit}
+.tabs .on{background:var(--b);color:var(--y);border-color:var(--b)}
+.sec{display:none}.sec.on{display:block}
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin:12px 0}
-h2{font-size:18px;margin:0 0 6px;color:var(--b)}
+h2{font-size:18px;margin:0 0 6px;color:var(--b)}h3{font-size:15px;margin:16px 0 6px}
 .hint,.small{color:var(--muted);font-size:13px}
-.drop{border:2px dashed var(--b2);border-radius:10px;padding:26px;text-align:center;background:var(--y3);cursor:pointer;margin-top:10px}
+label{font-size:13px;font-weight:700}
+input[type=text],input[type=number],select{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+.drop{border:2px dashed var(--b2);border-radius:10px;padding:22px;text-align:center;background:var(--y3);cursor:pointer;margin-top:10px;color:var(--b)}
 .drop.over{background:var(--y2)}
-button{border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;background:var(--y3);color:var(--b);font-size:14px;font-family:inherit}
-.primary{background:var(--b);color:#fff;border-color:var(--b)}
+button{border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;background:var(--y3);color:var(--b);font-size:14px;font-family:inherit}
+button:disabled{opacity:.4;cursor:not-allowed}
+.primary{background:var(--b);color:var(--y);border-color:var(--b)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .status{padding:10px 12px;border-radius:8px;background:var(--y3);font-size:13px;margin-top:12px}
+.warn{background:#F3E6D8;border-left:4px solid var(--b2);padding:10px 12px;border-radius:6px;font-size:13px;margin-top:10px}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}th{background:var(--y2)}
 td.up{font-weight:700;color:var(--b)}
 .hidden{display:none!important}
 ul{margin:6px 0 0;padding-left:18px}
+.linkbox{word-break:break-all;background:var(--y3);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px;margin-top:8px}
+#qr{margin-top:10px}
+/* 비밀번호 카드 */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.pcard{border:1.5px dashed var(--b2);border-radius:8px;padding:10px;text-align:center;background:#fff}
+.pcard b{display:block;font-size:22px;letter-spacing:3px;color:var(--b)}
+.pcard span{font-size:12px;color:var(--muted)}
+/* 사진 이름 붙이기 */
+.labeler{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start;margin-top:12px}
+.labeler img{width:100%;max-height:420px;object-fit:contain;background:#3B2A1C;border-radius:10px}
+.keys{display:grid;gap:8px}
+.keys button{padding:14px;font-size:16px;text-align:left}
+.keys button kbd{display:inline-block;min-width:22px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:4px;margin-right:8px;color:var(--b)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;margin-top:12px;max-height:420px;overflow:auto}
+.th{border:2px solid var(--line);border-radius:8px;overflow:hidden;font-size:11px;background:#fff;cursor:pointer;text-align:center}
+.th img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+.th div{padding:3px}
+.th.cur{border-color:var(--b)}.th.done{border-color:var(--y)}.th.x{opacity:.4}
+.th select{width:100%;font-size:11px;padding:2px;border:0;border-top:1px solid var(--line)}
+@media(max-width:760px){.labeler{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+@media print{body{background:#fff;padding:0}.top,.tabs,.noprint,.sec:not(#sec-class){display:none!important}#sec-class>.card:not(#cardBox){display:none}#cardBox{border:0;padding:0}.cards{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
 <main class="wrap">
 <header class="top">
-  <h1>교사용 · 학습지와 활동 기록 모으기</h1>
-  <p>학생들이 패들렛에 올린 CSV를 한꺼번에 합치고, 사전·사후를 학생 번호로 짝지어 줍니다.</p>
-  <nav class="tabs"><a href="teacher.html" class="on">학습지 결과</a><a href="eval.html">모델 평가화면</a><a href="./">학생용 앱</a></nav>
+  <h1>교사용 도구 · AI 옷장 탐정</h1>
+  <p>모든 파일은 이 브라우저 안에서만 처리되고 어디에도 전송되지 않아요.</p>
+  <nav class="tabs">
+    <button data-sec="class" class="on">① 반 링크·비밀번호</button>
+    <button data-sec="csv">② 학습지·기록 모으기</button>
+    <button data-sec="photos">③ 학생 사진 모으기 (v2 학습용)</button>
+    <button data-sec="rename">④ 평가 사진 이름 붙이기·나누기</button>
+    <a href="eval.html">평가 화면</a><a href="./">학생용 앱</a>
+  </nav>
 </header>
 
-<section class="card">
-  <h2>1. CSV 파일 넣기</h2>
-  <p class="hint">사전·사후 학습지, 실험기록, 디버깅기록, 새사진기록 CSV를 섞어서 넣어도 종류별로 나눠 줘요. 파일은 이 브라우저 안에서만 처리되고 어디에도 전송되지 않아요.</p>
-  <div class="drop" id="drop">여기로 CSV 파일을 끌어 놓거나 눌러서 선택하세요 (여러 개 가능)</div>
-  <input type="file" id="files" accept=".csv,text/csv" multiple class="hidden">
-  <div id="summary" class="status hidden"></div>
-  <div class="actions" id="actions"></div>
+<!-- ───────── ① 반 링크와 비밀번호 카드 ───────── -->
+<section class="sec on" id="sec-class">
+  <div class="card">
+    <h2>① 우리 반 링크 만들기</h2>
+    <p class="hint">담임 선생님이 한 번만 만들면 돼요. 이 링크(또는 QR)로 들어온 학생은 학년·반이 미리 채워지고, 사진을 우리 반 패들렛에 올리게 되며, 비밀번호를 입력해야 들어갈 수 있어요. 한 번 링크로 열린 기기는 다음에 그냥 주소로 들어와도 같은 반 설정이 유지돼요.</p>
+    <div class="row" style="margin-top:10px">
+      <label>학년 <select id="cG"></select></label>
+      <label>반 <select id="cC"></select></label>
+      <label>학생 수 <input type="number" id="cN" value="24" min="1" max="99" style="width:70px"></label>
+    </div>
+    <div style="margin-top:10px"><label>우리 반 패들렛 주소<br><input type="text" id="cP" placeholder="https://padlet.com/..." style="width:100%"></label></div>
+    <div class="row" style="margin-top:10px">
+      <label>반 열쇠 <input type="text" id="cK" style="width:120px" readonly></label>
+      <button id="cKnew" class="noprint">새 열쇠 만들기</button>
+      <span class="small">열쇠를 바꾸면 비밀번호가 모두 바뀌어요. 카드를 나눠 준 뒤에는 바꾸지 마세요.</span>
+    </div>
+    <div class="actions"><button class="primary" id="cMake">반 링크와 비밀번호 카드 만들기</button></div>
+    <div id="cOut" class="hidden">
+      <h3>반 링크</h3>
+      <div class="linkbox" id="cLink"></div>
+      <div class="actions"><button id="cCopy">링크 복사</button><button id="cPrint">비밀번호 카드 인쇄</button></div>
+      <div id="qr"></div>
+    </div>
+    <div class="warn">
+      비밀번호는 서버 없이 앱 안에서 계산하는 간단한 잠금이에요. 친구 번호로 장난삼아 들어가는 것은 막지만, 링크와 카드를 함께 가진 사람은 들어갈 수 있어요. 카드는 학생에게 한 장씩 나눠 주고, 반 링크는 우리 반에만 알려 주세요.
+    </div>
+  </div>
+  <div class="card hidden" id="cardBox">
+    <h2 class="noprint">비밀번호 카드 (잘라서 나눠 주세요)</h2>
+    <div class="cards" id="cards"></div>
+  </div>
 </section>
 
-<section class="card hidden" id="resultCard">
-  <h2>2. 사전·사후 빠른 비교</h2>
-  <p class="hint">사전과 사후를 모두 낸 학생만 계산해요. 0~5 척도 평균과 문제 해결 점수(0~5점)입니다.</p>
-  <div id="table"></div>
-  <div id="missingBox" class="small" style="margin-top:10px"></div>
+<!-- ───────── ② 학습지와 활동 기록 CSV 모으기 ───────── -->
+<section class="sec" id="sec-csv">
+  <div class="card">
+    <h2>② 학습지·활동 기록 CSV 모으기</h2>
+    <p class="hint">학생들이 패들렛에 올린 CSV를 한꺼번에 넣으세요. 사전·사후 학습지, 실험기록, 디버깅기록, 새사진기록, v2확인 CSV를 섞어 넣어도 종류별로 나눠 줘요. <b>빠진 파일이 있어도 있는 것만으로 합쳐요.</b></p>
+    <div class="row" style="margin-top:8px">
+      <span class="small">학년·반 정보가 없는 예전 파일은 이 반으로 볼게요:</span>
+      <label><input type="number" id="dG" min="1" max="6" style="width:56px"> 학년</label>
+      <label><input type="number" id="dC" min="1" max="20" style="width:56px"> 반</label>
+    </div>
+    <div class="drop" id="drop">여기로 CSV 파일을 끌어 놓거나 눌러서 선택하세요 (여러 개 가능)</div>
+    <input type="file" id="files" accept=".csv,text/csv" multiple class="hidden">
+    <div id="summary" class="status hidden"></div>
+    <div class="actions" id="actions"></div>
+  </div>
+  <div class="card hidden" id="resultCard">
+    <h2>사전·사후 빠른 비교</h2>
+    <p class="hint">사전과 사후를 모두 낸 학생만 계산해요. 0~5 척도 평균과 문제 해결 점수(0~5점)입니다.</p>
+    <div id="table"></div>
+    <div id="missingBox" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>파일 설명</h2>
+    <ul class="small">
+      <li><b>사전사후_짝비교.csv</b> – 학생마다 사전·사후 점수를 한 줄에 나란히 놓은 파일 (대응표본 t검정용)</li>
+      <li><b>학습지_전체.csv</b> – 모든 응답과 '이유' 서술을 그대로 모은 파일 (질적 분석용)</li>
+      <li><b>실험기록 / 디버깅기록 / 새사진기록 / v2확인_전체.csv</b> – 3~6단계 활동 기록 합본</li>
+      <li>같은 학생이 여러 번 제출했다면 가장 마지막 제출을 사용해요. 검정 통계는 jamovi·SPSS 등에서 계산하세요.</li>
+    </ul>
+  </div>
 </section>
 
-<section class="card">
-  <h2>파일 설명</h2>
-  <ul class="small">
-    <li><b>사전사후_짝비교.csv</b> – 학생 번호마다 사전·사후 점수를 한 줄에 나란히 놓은 파일 (대응표본 t검정용). 영역 평균에는 '변화' 열이 붙어요.</li>
-    <li><b>학습지_전체.csv</b> – 모든 응답과 '이유' 서술을 그대로 모은 파일 (질적 분석용)</li>
-    <li><b>실험기록 / 디버깅기록 / 새사진기록_전체.csv</b> – 3~5단계 활동 기록 합본</li>
-    <li>같은 학생이 여러 번 제출했다면 가장 마지막 제출을 사용해요.</li>
-    <li>화면의 평균은 빠른 확인용이에요. 검정 통계는 jamovi·SPSS 등에서 계산하세요.</li>
-  </ul>
+<!-- ───────── ③ 학생 사진 모으기 (v2 학습용) ───────── -->
+<section class="sec" id="sec-photos">
+  <div class="card">
+    <h2>③ 학생 사진을 v2 학습용으로 모으기</h2>
+    <p class="hint">학생들이 올린 <b>틀린사진 / 디버깅 / 새사진 ZIP</b>을 몇 개든 그대로 넣으세요. 빠진 파일이 있어도 괜찮아요. 같은 사진이 두 ZIP에 들어 있으면(틀린사진과 디버깅 ZIP) 한 장만 남기고, 상의/하의/양말 폴더로 모아 티처블 머신에 바로 올릴 수 있는 ZIP을 만들어요.</p>
+    <div class="drop" id="pDrop">여기로 학생 ZIP·사진·폴더를 끌어 놓거나 눌러서 선택하세요</div>
+    <input type="file" id="pFiles" accept=".zip,image/*" multiple class="hidden">
+    <div id="pSum" class="status hidden"></div>
+    <p class="small">학생이 고른 옷 종류가 틀렸을 수 있어요. 아래 사진 밑의 칸에서 종류를 고치거나 '빼기'를 고르세요.</p>
+    <div id="pThumbs" class="thumbs"></div>
+    <div class="actions"><button class="primary" id="pZip" disabled>v2 학습용 ZIP 만들기</button><button id="pClear">비우기</button></div>
+    <div class="warn">v2 학습에 넣은 학생 사진(같은 옷, 같은 장면)은 고정 개발용·최종 테스트용에 넣지 마세요. 넣으면 v2 점수가 실제보다 좋게 나와요.</div>
+  </div>
+</section>
+
+<!-- ───────── ④ 평가 사진 이름 붙이기와 나누기 ───────── -->
+<section class="sec" id="sec-rename">
+  <div class="card">
+    <h2>④ 평가 사진에 이름 붙이고 개발용·테스트용으로 나누기</h2>
+    <p class="hint">KakaoTalk_… 같은 이름의 사진을 넣고, 한 장씩 보면서 <b>키보드 1(상의) · 2(하의) · 3(양말) · 0(빼기)</b>를 누르세요. 다 고르면 <code>상의_01.jpg</code>처럼 이름을 바꾸고 고정 개발용·최종 테스트용 폴더로 나눈 ZIP을 만들어요.</p>
+    <div class="warn">정답 라벨은 AI가 아니라 사람이 붙여야 해요. AI가 붙인 이름으로 AI를 채점하면, AI가 틀린 사진이 '정답'으로 바뀌어 점수가 실제보다 높게 나와요.</div>
+    <div class="drop" id="rDrop">여기로 사진·폴더·ZIP을 끌어 놓거나 눌러서 선택하세요</div>
+    <input type="file" id="rFiles" accept=".zip,image/*" multiple class="hidden">
+    <div id="rArea" class="hidden">
+      <div class="labeler">
+        <div><img id="rImg" alt=""><p class="small" id="rName" style="margin:6px 0 0"></p></div>
+        <div>
+          <p style="margin:0 0 8px;font-weight:700" id="rProg"></p>
+          <div class="keys">
+            <button data-l="상의"><kbd>1</kbd>상의</button>
+            <button data-l="하의"><kbd>2</kbd>하의</button>
+            <button data-l="양말"><kbd>3</kbd>양말</button>
+            <button data-l="빼기"><kbd>0</kbd>빼기 (평가에 안 씀)</button>
+          </div>
+          <div class="actions"><button id="rPrev">← 이전 사진</button><button id="rNext">다음 사진 →</button></div>
+        </div>
+      </div>
+      <div id="rThumbs" class="thumbs"></div>
+      <h3>묶음 나누기</h3>
+      <div class="row">
+        <label><input type="radio" name="split" value="dev" checked> 모두 고정 개발용</label>
+        <label><input type="radio" name="split" value="test"> 모두 최종 테스트용</label>
+        <label><input type="radio" name="split" value="n"> 클래스마다 앞에서 <input type="number" id="rDevN" value="20" min="1" style="width:60px">장은 개발용, 나머지는 최종 테스트용</label>
+      </div>
+      <div id="rSum" class="status"></div>
+      <div class="actions"><button class="primary" id="rZip" disabled>이름 바꾼 ZIP 만들기</button><button id="rClear">비우기</button></div>
+      <p class="small">파일 이름 순서(카카오톡 사진은 찍은 시각 순서)대로 번호를 매겨요. 같은 날·같은 장소에서 찍은 사진을 개발용과 테스트용으로 나누면 두 묶음이 독립적이지 않아요(4주차). 가능하면 최종 테스트용은 다른 날·다른 장소에서 따로 찍어 '모두 최종 테스트용'으로 만드세요.</p>
+    </div>
+  </div>
 </section>
 </main>
 
 <script>
+/* =========================================================
+   공통 도우미
+   ========================================================= */
 const $ = id => document.getElementById(id);
+const CLASSES = ["상의", "하의", "양말"];
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function toCsv(rows){ return "﻿" + rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n"); }
-function saveCsv(text, name){ const u = URL.createObjectURL(new Blob([text], { type:"text/csv;charset=utf-8" })), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }
+function saveBlob(blob, name){ const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 1500); }
+const saveCsv = (text, name) => saveBlob(new Blob([text], { type:"text/csv;charset=utf-8" }), name);
+function norm(s){ const x = String(s).replace(/\s/g, "").toLowerCase();
+  if (x.includes("상의") || x.includes("top") || x.includes("shirt")) return "상의";
+  if (x.includes("하의") || x.includes("bottom") || x.includes("pants")) return "하의";
+  if (x.includes("양말") || x.includes("sock")) return "양말";
+  return String(s).trim(); }
+// 탭 전환
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".sec").forEach(s => s.classList.toggle("on", s.id === "sec-" + b.dataset.sec));
+});
+// 끌어 놓기 칸: 파일과 폴더(안쪽 파일까지)를 경로와 함께 넘겨준다
+function dropZone(zoneId, inputId, onFiles){
+  const z = $(zoneId);
+  z.onclick = () => $(inputId).click();
+  $(inputId).onchange = e => { onFiles([...e.target.files].map(f => ({ f, p:f.webkitRelativePath || f.name }))); e.target.value = ""; };
+  z.ondragover = e => { e.preventDefault(); z.classList.add("over"); };
+  z.ondragleave = () => z.classList.remove("over");
+  z.ondrop = async e => {
+    e.preventDefault(); z.classList.remove("over");
+    const entries = [...e.dataTransfer.items].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    if (!entries.length) return onFiles([...e.dataTransfer.files].map(f => ({ f, p:f.name })));
+    const out = [];
+    const walk = (en, path) => new Promise(res => {
+      if (en.isFile) en.file(f => { out.push({ f, p:path + f.name }); res(); }, res);
+      else { const r = en.createReader(), all = [];
+        const read = () => r.readEntries(async es => { if (es.length) { all.push(...es); read(); } else { for (const x of all) await walk(x, path + en.name + "/"); res(); } }, res); read(); }
+    });
+    for (const en of entries) await walk(en, "");
+    onFiles(out);
+  };
+}
+// ZIP이면 풀어서 사진만, 사진이면 그대로 → [{ path, blob }]
+const IMG = /\.(jpe?g|png|webp|bmp|gif)$/i;
+const decodeFileName = bytes => { const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  try { return new TextDecoder("utf-8", { fatal:true }).decode(u8); } catch (e) { return new TextDecoder("euc-kr").decode(u8); } };
+async function expandImages(list){
+  const out = [];
+  for (const { f, p } of list) {
+    if (/\.zip$/i.test(f.name)) {
+      try { const z = await JSZip.loadAsync(f, { decodeFileName });
+        for (const [zp, en] of Object.entries(z.files)) {
+          if (en.dir || /__MACOSX|(^|\/)\._/.test(zp) || !IMG.test(zp)) continue;
+          out.push({ path:(f.name.replace(/\.zip$/i, "") + "/" + zp).normalize("NFC"), blob:await en.async("blob") });
+        }
+      } catch (e) { console.error(e); alert(f.name + " 압축을 풀지 못했어요."); }
+    } else if (IMG.test(f.name)) out.push({ path:p.normalize("NFC"), blob:f });
+  }
+  return out;
+}
+// 경로에서 옷 종류 읽기: 예전 형식 '실제-양말' → 파일 이름 앞부분(상의01(1).jpg, 상의_01.jpg) → 폴더 이름
+function labelFromPath(path){
+  const s = path.replace(/\\/g, "/"), name = s.split("/").pop();
+  let m = s.match(/실제-(상의|하의|양말)/); if (m) return m[1];
+  m = name.match(/^(상의|하의|양말)/); if (m) return m[1];
+  for (const d of s.split("/").slice(0, -1).reverse()) { const n = norm(d); if (CLASSES.includes(n)) return n; }
+  return null;
+}
 
-// 따옴표로 감싼 CSV를 읽어 2차원 배열로 바꾼다 (맥에서 만든 파일의 한글도 NFC로 맞춤)
+/* =========================================================
+   ① 반 링크와 비밀번호 카드
+   - 링크에 학년(g)·반(c)·반 열쇠(k)·패들렛 주소(p)를 담는다
+   - 비밀번호 = 열쇠와 학년·반·번호로 계산한 4자리 (학생 앱 index.html과 똑같은 계산)
+   ========================================================= */
+function passCode(k, g, c, n){
+  let h = 2166136261;
+  for (const ch of `${k}|${+g}|${+c}|${+n}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return String(1000 + h % 9000);
+}
+$("cG").innerHTML = [1,2,3,4,5,6].map(n => `<option ${n === 5 ? "selected" : ""}>${n}</option>`).join("");
+$("cC").innerHTML = Array.from({ length:20 }, (_, i) => `<option>${i + 1}</option>`).join("");
+const newKey = () => Math.random().toString(36).slice(2, 8);
+// 반마다 열쇠를 이 기기에 기억해 둔다 (다시 열어도 같은 비밀번호가 나오게)
+function keyStore(){ try { return JSON.parse(localStorage.getItem("closetKeys") || "{}"); } catch (e) { return {}; } }
+function loadKey(){
+  const id = `${$("cG").value}-${$("cC").value}`, st = keyStore();
+  $("cK").value = st[id] || newKey();
+  $("cP").value = (st[id + ":p"]) || $("cP").value;
+}
+function saveKey(){ const id = `${$("cG").value}-${$("cC").value}`, st = keyStore(); st[id] = $("cK").value; st[id + ":p"] = $("cP").value.trim(); try { localStorage.setItem("closetKeys", JSON.stringify(st)); } catch (e) {} }
+$("cG").onchange = $("cC").onchange = loadKey; loadKey();
+$("cKnew").onclick = () => { if (confirm("열쇠를 바꾸면 이미 나눠 준 비밀번호 카드를 쓸 수 없어요. 바꿀까요?")) $("cK").value = newKey(); };
+$("cMake").onclick = () => {
+  const g = $("cG").value, c = $("cC").value, n = Math.min(99, Math.max(1, +$("cN").value || 24)), p = $("cP").value.trim(), k = $("cK").value;
+  if (p && !/^https:\/\/(www\.)?padlet\.com\//.test(p) && !confirm("패들렛 주소(https://padlet.com/...)가 아닌 것 같아요. 그대로 쓸까요?")) return;
+  saveKey();
+  const url = new URL("./", location.href);
+  url.search = new URLSearchParams({ g, c, k, ...(p ? { p } : {}) }).toString();
+  $("cLink").textContent = url.href; $("cOut").classList.remove("hidden");
+  $("qr").innerHTML = "";
+  if (window.QRCode) new QRCode($("qr"), { text:url.href, width:200, height:200, correctLevel:QRCode.CorrectLevel.L });
+  else $("qr").innerHTML = '<p class="small">QR 코드를 만들지 못했어요. 링크를 복사해 QR 만들기 사이트를 이용하세요.</p>';
+  $("cards").innerHTML = Array.from({ length:n }, (_, i) => { const num = String(i + 1).padStart(2, "0");
+    return `<div class="pcard"><span>${g}학년 ${c}반 ${num}번</span><b>${passCode(k, g, c, i + 1)}</b><span>AI 옷장 탐정 비밀번호</span></div>`; }).join("");
+  $("cardBox").classList.remove("hidden");
+};
+$("cCopy").onclick = async () => { try { await navigator.clipboard.writeText($("cLink").textContent); alert("링크를 복사했어요."); } catch (e) { prompt("아래 링크를 복사하세요.", $("cLink").textContent); } };
+$("cPrint").onclick = () => window.print();
+
+/* =========================================================
+   ② 학습지·활동 기록 CSV 모으기 (빠진 파일이 있어도 있는 것만 합침)
+   ========================================================= */
 function parseCsv(text){
   text = text.replace(/^﻿/, "").normalize("NFC"); const rows = []; let row = [], f = "", q = false;
   for (let i = 0; i < text.length; i++) { const c = text[i];
@@ -79,31 +311,24 @@ function parseCsv(text){
   if (f || row.length) { row.push(f); rows.push(row); }
   return rows.filter(r => r.some(v => v !== ""));
 }
-// 사전·사후처럼 열 구성이 조금 달라도 열 이름 기준으로 합친다
+// 열 이름 기준으로 합친다 (사전·사후, 예전·새 형식처럼 열이 조금 달라도 됨)
 function unionRows(tables){
   const head = []; tables.forEach(t => t.head.forEach(h => { if (!head.includes(h)) head.push(h); }));
   const rows = []; tables.forEach(t => t.rows.forEach(r => rows.push(head.map(h => { const i = t.head.indexOf(h); return i < 0 ? "" : r[i]; }))));
   return { head, rows };
 }
-
-// 파일 넣기 (끌어 놓기 + 선택)
-$("drop").onclick = () => $("files").click();
-$("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
-$("drop").ondragleave = () => $("drop").classList.remove("over");
-$("drop").ondrop = e => { e.preventDefault(); $("drop").classList.remove("over"); handle([...e.dataTransfer.files]); };
-$("files").onchange = e => { handle([...e.target.files]); e.target.value = ""; };
-
+dropZone("drop", "files", list => handle(list.map(x => x.f)));
 async function handle(files){
   files = files.filter(f => /\.csv$/i.test(f.name)); if (!files.length) return alert("CSV 파일을 넣어 주세요.");
-  // 열 이름을 보고 파일 종류를 나눈다
-  const groups = { 학습지:[], 실험기록:[], 디버깅기록:[], 새사진기록:[] };
+  const groups = { 학습지:[], 실험기록:[], 디버깅기록:[], 새사진기록:[], v2확인:[] };
   for (const f of files) {
     const rows = parseCsv(await f.text()); if (rows.length < 2) continue;
-    const t = { head: rows[0], rows: rows.slice(1) };
+    const t = { head: rows[0], rows: rows.slice(1).filter(r => r.length > 1) };   // ZIP 속 CSV 끝의 '나의 생각' 줄 같은 짧은 줄은 제외
     if (t.head.includes("시점")) groups.학습지.push(t);
     else if (t.head.some(h => h.startsWith("내예측"))) groups.실험기록.push(t);
     else if (t.head.some(h => h.startsWith("왜틀렸을까"))) groups.디버깅기록.push(t);
     else if (t.head.includes("바꾼점")) groups.새사진기록.push(t);
+    else if (t.head.includes("v2판단")) groups.v2확인.push(t);
   }
   const acts = $("actions"); acts.innerHTML = "";
   let summary = `CSV ${files.length}개를 읽었어요.`;
@@ -111,22 +336,24 @@ async function handle(files){
     const u = unionRows(ts), b = document.createElement("button");
     b.textContent = `${name}_전체.csv (${u.rows.length}줄)`; b.onclick = () => saveCsv(toCsv([u.head, ...u.rows]), `${name}_전체.csv`); acts.appendChild(b);
     summary += ` ${name} ${u.rows.length}줄.`; });
-
   $("resultCard").classList.add("hidden");
   if (groups.학습지.length) summary += pairSurveys(unionRows(groups.학습지));
   $("summary").textContent = summary; $("summary").classList.remove("hidden");
 }
-
-// 사전·사후를 학생 번호로 짝짓기
+// 학생 구분 열쇠: 학년-반-번호 (학년·반이 없는 예전 파일은 위 칸에 적은 반으로)
+function studentKey(r, H){
+  const g = (H("학년") >= 0 && r[H("학년")]) || $("dG").value, c = (H("반") >= 0 && r[H("반")]) || $("dC").value, n = r[H("학생코드")];
+  if (!n) return "";
+  return g && c ? `${g}-${c}-${String(+n).padStart(2, "0")}` : String(+n).padStart(2, "0");
+}
 function pairSurveys(u){
   const H = n => u.head.indexOf(n);
-  // 비교할 숫자 열: Q1~Q8 척도, S1~S5 점수, 영역 평균·문제해결점수
   const numCols = u.head.filter(h => /^Q\d+_[^_]+$/.test(h) || h.endsWith("_점수") || h.includes("평균(") || h.includes("점수("));
   const summaryCols = numCols.filter(h => h.includes("("));
-  const by = {};   // 학생 번호별 가장 마지막 사전/사후
-  u.rows.forEach(r => { const c = r[H("학생코드")], p = r[H("시점")]; if (!c) return; by[c] = by[c] || {};
+  const by = {};   // 학생별 가장 마지막 사전/사후
+  u.rows.forEach(r => { const c = studentKey(r, H), p = r[H("시점")]; if (!c) return; by[c] = by[c] || {};
     if (!by[c][p] || r[H("제출시각")] > by[c][p][H("제출시각")]) by[c][p] = r; });
-  const head = ["학생코드","짝맞춤"];
+  const head = ["학생(학년-반-번호)","짝맞춤"];
   numCols.forEach(h => head.push("사전_" + h, "사후_" + h, ...(summaryCols.includes(h) ? ["변화_" + h] : [])));
   const codes = Object.keys(by).sort();
   const rows = codes.map(c => { const pre = by[c]["사전"], post = by[c]["사후"], r = [c, pre && post ? "O" : "X"];
@@ -135,19 +362,124 @@ function pairSurveys(u){
     return r; });
   const b = document.createElement("button"); b.className = "primary"; b.textContent = "사전사후_짝비교.csv";
   b.onclick = () => saveCsv(toCsv([head, ...rows]), "사전사후_짝비교.csv"); $("actions").prepend(b);
-
-  // 짝이 맞는 학생만 평균 비교
   const paired = codes.filter(c => by[c]["사전"] && by[c]["사후"]);
   const onlyPre = codes.filter(c => by[c]["사전"] && !by[c]["사후"]), onlyPost = codes.filter(c => !by[c]["사전"] && by[c]["사후"]);
   if (paired.length) {
     const mean = (p, h) => paired.reduce((s, c) => s + (+by[c][p][H(h)] || 0), 0) / paired.length;
     $("table").innerHTML = `<table><tr><th>영역</th><th>사전 평균</th><th>사후 평균</th><th>변화</th></tr>${summaryCols.map(h => { const a = mean("사전", h), d = mean("사후", h) - a;
       return `<tr><td>${esc(h)}</td><td>${a.toFixed(2)}</td><td>${mean("사후", h).toFixed(2)}</td><td class="${d > 0 ? "up" : ""}">${d > 0 ? "+" : ""}${d.toFixed(2)}</td></tr>`; }).join("")}</table><p class="small">n = ${paired.length}명</p>`;
-    $("missingBox").innerHTML = (onlyPre.length ? `사후 미제출: ${onlyPre.map(esc).join(", ")}번<br>` : "") + (onlyPost.length ? `사전 미제출: ${onlyPost.map(esc).join(", ")}번` : "");
     $("resultCard").classList.remove("hidden");
   }
+  $("missingBox").innerHTML = (onlyPre.length ? `사후 미제출: ${onlyPre.map(esc).join(", ")}<br>` : "") + (onlyPost.length ? `사전 미제출: ${onlyPost.map(esc).join(", ")}` : "");
+  if (!paired.length && (onlyPre.length || onlyPost.length)) $("resultCard").classList.remove("hidden");
   return ` 학습지: 학생 ${codes.length}명, 사전·사후 짝 ${paired.length}명.`;
 }
+
+/* =========================================================
+   ③ 학생 사진 모으기: 같은 사진은 한 장만 (내용이 똑같은지로 판단), 옷 종류별 폴더로
+   ========================================================= */
+let pItems = [];   // { path, blob, url, label, hash, out }
+const pSeen = new Set();
+async function hashOf(blob){
+  const buf = await blob.arrayBuffer();
+  if (crypto.subtle) { const h = await crypto.subtle.digest("SHA-256", buf); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join(""); }
+  return buf.byteLength + ":" + new Uint8Array(buf.slice(0, 4096)).join(",");   // 보안 연결이 아닐 때의 대안
+}
+dropZone("pDrop", "pFiles", async list => {
+  $("pSum").textContent = "사진을 읽는 중..."; $("pSum").classList.remove("hidden");
+  const imgs = await expandImages(list); let dup = 0;
+  for (const { path, blob } of imgs) {
+    const h = await hashOf(blob);
+    if (pSeen.has(h)) { dup++; continue; }   // 틀린사진 ZIP과 디버깅 ZIP에 함께 든 같은 사진
+    pSeen.add(h);
+    pItems.push({ path, blob, url:URL.createObjectURL(blob), label:labelFromPath(path) || "", hash:h });
+  }
+  renderP(dup);
+});
+let pDupTotal = 0;
+function renderP(dup = 0){
+  pDupTotal += dup;
+  const cnt = c => pItems.filter(i => i.label === c).length, none = pItems.filter(i => !i.label).length;
+  $("pSum").innerHTML = `모은 사진 ${pItems.length}장 · 상의 ${cnt("상의")} · 하의 ${cnt("하의")} · 양말 ${cnt("양말")}` +
+    (none ? ` · <b>종류 모름 ${none}장 (아래에서 골라 주세요)</b>` : "") + (pDupTotal ? ` · 겹친 사진 ${pDupTotal}장은 한 장만 남김` : "") +
+    (cnt("빼기") ? ` · 뺀 사진 ${cnt("빼기")}장` : "");
+  $("pThumbs").innerHTML = pItems.map((i, k) => `<div class="th ${i.label === "빼기" ? "x" : ""}" title="${esc(i.path)}"><img src="${i.url}" loading="lazy" alt=""><div>${esc(i.path.split("/").pop())}</div>
+    <select data-k="${k}"><option value="">종류?</option>${[...CLASSES, "빼기"].map(c => `<option ${i.label === c ? "selected" : ""}>${c}</option>`).join("")}</select></div>`).join("");
+  $("pZip").disabled = !pItems.some(i => CLASSES.includes(i.label));
+}
+$("pThumbs").addEventListener("change", e => { const s = e.target.closest("select[data-k]"); if (!s) return; pItems[+s.dataset.k].label = s.value; renderP(); });
+$("pClear").onclick = () => { pItems.forEach(i => URL.revokeObjectURL(i.url)); pItems = []; pSeen.clear(); pDupTotal = 0; renderP(); $("pSum").classList.add("hidden"); };
+$("pZip").onclick = async () => {
+  const z = new JSZip(), used = new Set(), rows = [["새 이름","옷 종류","원래 경로"]];
+  for (const i of pItems.filter(i => CLASSES.includes(i.label))) {
+    // 반 정보가 ZIP 이름에 있으면(틀린사진_5-1_03) 파일 이름 앞에 붙여 다른 반 사진과 이름이 겹치지 않게 함
+    const cls = (i.path.match(/_(\d-\d{1,2})_\d{2}\//) || [])[1];
+    let name = (cls ? cls + "_" : "") + i.path.split("/").pop();
+    while (used.has(i.label + "/" + name)) name = name.replace(/(\.\w+)$/, "_2$1");
+    used.add(i.label + "/" + name);
+    z.file(`v2학습용_학생사진/${i.label}/${name}`, i.blob); rows.push([name, i.label, i.path]);
+  }
+  z.file("v2학습용_학생사진/사진목록.csv", toCsv(rows));
+  saveBlob(await z.generateAsync({ type:"blob" }), "v2학습용_학생사진.zip");
+};
+
+/* =========================================================
+   ④ 평가 사진 이름 붙이기: 사람이 한 장씩 보고 키보드로 고른다 → 상의_01.jpg + 개발용/테스트용 폴더
+   ========================================================= */
+let rItems = [], rCur = 0;
+dropZone("rDrop", "rFiles", async list => {
+  const imgs = await expandImages(list);
+  imgs.sort((a, b) => a.path.localeCompare(b.path, "ko", { numeric:true }));   // 파일 이름(찍은 시각) 순서
+  imgs.forEach(({ path, blob }) => rItems.push({ path, blob, url:URL.createObjectURL(blob), label:"" }));
+  if (rItems.length) { $("rArea").classList.remove("hidden"); rCur = rItems.findIndex(i => !i.label); if (rCur < 0) rCur = 0; renderR(); }
+});
+function setLabel(l){ if (!rItems.length) return; rItems[rCur].label = l; const next = rItems.findIndex((i, k) => k > rCur && !i.label); rCur = next >= 0 ? next : Math.min(rCur + 1, rItems.length - 1); renderR(); }
+document.querySelectorAll(".keys button").forEach(b => b.onclick = () => setLabel(b.dataset.l));
+document.addEventListener("keydown", e => {
+  if (!$("sec-rename").classList.contains("on") || !rItems.length || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  const map = { "1":"상의", "2":"하의", "3":"양말", "0":"빼기" };
+  if (map[e.key]) { e.preventDefault(); setLabel(map[e.key]); }
+  if (e.key === "ArrowLeft") { rCur = Math.max(0, rCur - 1); renderR(); }
+  if (e.key === "ArrowRight") { rCur = Math.min(rItems.length - 1, rCur + 1); renderR(); }
+});
+$("rPrev").onclick = () => { rCur = Math.max(0, rCur - 1); renderR(); };
+$("rNext").onclick = () => { rCur = Math.min(rItems.length - 1, rCur + 1); renderR(); };
+$("rThumbs").addEventListener("click", e => { const t = e.target.closest("[data-k]"); if (t) { rCur = +t.dataset.k; renderR(); } });
+document.querySelectorAll("input[name=split]").forEach(r => r.onchange = renderR);
+$("rDevN").oninput = renderR;
+// 묶음 나누기: 클래스마다 파일 이름 순서대로 번호를 매기고 개발용/테스트용을 정한다
+function plan(){
+  const mode = document.querySelector("input[name=split]:checked").value, devN = Math.max(0, +$("rDevN").value || 0), out = [];
+  CLASSES.forEach(c => {
+    const list = rItems.filter(i => i.label === c);
+    list.forEach((i, k) => {
+      const set = mode === "dev" ? "고정개발용" : mode === "test" ? "최종테스트용" : (k < devN ? "고정개발용" : "최종테스트용");
+      out.push({ i, c, set });
+    });
+  });
+  // 묶음 안에서 클래스마다 01부터 번호
+  const num = {}; out.forEach(o => { const key = o.set + o.c; num[key] = (num[key] || 0) + 1; o.name = `${o.c}_${String(num[key]).padStart(2, "0")}.jpg`; });
+  return out;
+}
+function renderR(){
+  if (!rItems.length) return;
+  const it = rItems[rCur], done = rItems.filter(i => i.label).length;
+  $("rImg").src = it.url; $("rName").textContent = `${it.path}${it.label ? " → " + it.label : ""}`;
+  $("rProg").textContent = `${rCur + 1} / ${rItems.length}번째 사진 · 고른 사진 ${done}장`;
+  document.querySelectorAll(".keys button").forEach(b => b.classList.toggle("primary", b.dataset.l === it.label));
+  $("rThumbs").innerHTML = rItems.map((i, k) => `<div class="th ${k === rCur ? "cur" : ""} ${i.label ? "done" : ""} ${i.label === "빼기" ? "x" : ""}" data-k="${k}"><img src="${i.url}" loading="lazy" alt=""><div>${i.label || "?"}</div></div>`).join("");
+  const p = plan(), c = (set, cl) => p.filter(o => o.set === set && o.c === cl).length;
+  $("rSum").innerHTML = `<table><tr><th>묶음</th>${CLASSES.map(x => `<th>${x}</th>`).join("")}<th>합계</th></tr>${["고정개발용","최종테스트용"].map(s => `<tr><td>${s}</td>${CLASSES.map(x => `<td>${c(s, x)}</td>`).join("")}<td>${p.filter(o => o.set === s).length}</td></tr>`).join("")}</table>` +
+    (rItems.length - done ? `<p class="small" style="margin:6px 0 0">아직 고르지 않은 사진 ${rItems.length - done}장은 ZIP에 들어가지 않아요.</p>` : "");
+  $("rZip").disabled = !p.length;
+}
+$("rZip").onclick = async () => {
+  const p = plan(), z = new JSZip(), rows = [["묶음","새 이름","옷 종류","원래 이름"]];
+  p.forEach(o => { z.file(`평가사진/${o.set}/${o.name}`, o.i.blob); rows.push([o.set, o.name, o.c, o.i.path]); });
+  z.file("평가사진/이름바꾸기_기록.csv", toCsv(rows));
+  saveBlob(await z.generateAsync({ type:"blob" }), "평가사진_이름바꾼것.zip");
+};
+$("rClear").onclick = () => { rItems.forEach(i => URL.revokeObjectURL(i.url)); rItems = []; rCur = 0; $("rArea").classList.add("hidden"); };
 </script>
 </body>
 </html>

@@ -104,6 +104,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
 .progress{height:8px;background:var(--y2);border-radius:8px;overflow:hidden;margin:6px 0 2px}.progress i{display:block;height:100%;background:var(--b);width:0}
 .navbtns{display:flex;gap:8px;margin:6px 0}
 .navbtns button{background:#fff}
+.navbtns #nextBtn{background:var(--b);color:var(--y);border-color:var(--b)}
+.navbtns #nextBtn:disabled{opacity:.35}
+.idrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:420px}
+.idrow input{font-size:20px;text-align:center}
+.idrow input[readonly]{background:var(--y3);color:var(--b);font-weight:700}
 #fileInput3,#fileInput5{display:none}
 .footer{text-align:center;color:var(--muted);font-size:12px;padding:18px}
 @media(max-width:520px){body{padding:9px}.card{padding:13px}.chips{grid-template-columns:1fr}.debugcard{grid-template-columns:1fr}.debugcard img{max-width:200px}}
@@ -125,11 +130,19 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid 
 <section class="step" data-step="0">
   <div class="card">
     <h2>탐정 등록</h2>
-    <p class="hint">이 앱에는 이름을 쓰지 않아요. 선생님이 알려 준 <b>내 번호</b>를 숫자로 적어 주세요.<br>내가 내려받는 사진 파일 이름에 이 번호가 들어가요. (예: 1번 → 상의01(1).jpg)</p>
-    <label for="codeInput">내 번호</label>
-    <input id="codeInput" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="예: 1" style="max-width:180px;font-size:20px;text-align:center">
+    <div id="classBanner" class="notice hidden" style="margin-bottom:10px"></div>
+    <p class="hint">이 앱에는 이름을 쓰지 않아요. <b>학년, 반, 번호</b>를 숫자로 적어 주세요.<br>내가 내려받는 사진 파일 이름에는 번호가 들어가요. (예: 1번 → 상의01(1).jpg)</p>
+    <div class="idrow">
+      <div><label for="gradeInput">학년</label><input id="gradeInput" inputmode="numeric" maxlength="1" autocomplete="off" placeholder="5"></div>
+      <div><label for="clsInput">반</label><input id="clsInput" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="1"></div>
+      <div><label for="codeInput">번호</label><input id="codeInput" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="1"></div>
+    </div>
+    <div id="pwRow" class="hidden" style="max-width:420px">
+      <label for="pwInput">내 비밀번호 (선생님이 준 카드의 숫자 4자리)</label>
+      <input id="pwInput" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="●●●●" style="font-size:20px;text-align:center;max-width:200px">
+    </div>
     <p class="small" id="codePreview" style="margin:6px 0 0">숫자만 적을 수 있어요.</p>
-    <div class="actions"><button class="primary" id="startBtn" disabled>번호를 적어 주세요</button></div>
+    <div class="actions"><button class="primary" id="startBtn" disabled>학년, 반, 번호를 적어 주세요</button></div>
   </div>
   <div class="card">
     <h2>활동 순서</h2>
@@ -400,8 +413,30 @@ const TH_PARAM = parseFloat(new URLSearchParams(location.search).get("th"));
 const THRESHOLD = TH_PARAM >= 0 && TH_PARAM < 1 ? TH_PARAM : 0.65;
 const UNSURE_TIPS = ["옷을 화면 가운데에 크게 놓아요", "밝은 곳에서 찍어요", "무늬 없는 바닥이나 벽 앞에 놓고 찍어요"];
 const MAX_NUMBER = 99;            // 0단계에 적을 수 있는 가장 큰 번호 (반마다 인원이 달라도 쓸 수 있게)
-const PADLET_URL = "https://padlet.com/seoyj980130/5-3-s024awos31um54lu65da";  // 사진 ZIP 올리는 곳
-const SURVEY_SUBMIT_URL = PADLET_URL;  // 학습지 CSV 올리는 곳 (친구가 못 보게 하려면 별도 패들렛으로 교체)
+// 반 링크(teacher.html에서 만듦)로 들어오지 않았을 때 쓰는 기본 패들렛 주소
+const PADLET_URL = "https://padlet.com/seoyj980130/5-3-s024awos31um54lu65da";
+
+/* 반 설정: 담임 선생님이 teacher.html에서 만든 '반 링크'에 학년·반·패들렛 주소·반 열쇠가 들어 있다.
+   예) https://mycloset-collector.vercel.app/?g=5&c=1&k=ab12cd&p=https%3A%2F%2Fpadlet.com%2F...
+   서버가 없으므로 이 링크로 반 정보를 전달하고, 한 번 열린 기기에는 반 정보만 기억해 둔다
+   (학생 이름·사진·결과는 저장하지 않음). */
+const CLASS = (() => {
+  const q = new URLSearchParams(location.search), fromLink = q.get("g") && q.get("c");
+  let c = {};
+  if (fromLink) {
+    c = { g:q.get("g"), c:q.get("c"), k:q.get("k") || "", p:q.get("p") || "" };
+    try { localStorage.setItem("closetClass", JSON.stringify(c)); } catch (e) {}
+  } else { try { c = JSON.parse(localStorage.getItem("closetClass") || "{}"); } catch (e) { c = {}; } }
+  return c;
+})();
+const PADLET = CLASS.p && /^https:\/\//.test(CLASS.p) ? CLASS.p : PADLET_URL;   // 이 반이 쓸 패들렛
+const SURVEY_SUBMIT_URL = PADLET;
+// 학생 비밀번호: 반 열쇠 + 학년·반·번호로 4자리 숫자를 만든다 (teacher.html의 카드와 같은 계산)
+function passCode(k, g, c, n){
+  let h = 2166136261;
+  for (const ch of `${k}|${+g}|${+c}|${+n}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return String(1000 + h % 9000);
+}
 const V2_MODEL_URL = "./v2/";     // 6단계: 고친 모델(v2) 위치. 배포 폴더 안 v2 폴더에 모델 파일 3개를 넣으면 바로 작동
 const VIDEO_ID = "XYnImGQuWbU";   // 2단계 학습 영상
 const CLASSES = ["상의", "하의", "양말"];
@@ -514,6 +549,8 @@ let cur5 = { photo:null, label:null };
    ========================================================= */
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 const pct = p => (p * 100).toFixed(1) + "%";
+// 내려받는 ZIP·CSV 이름에 붙는 꼬리표: 5-1_03 (사진 파일 이름에는 번호만 들어감)
+const tag = () => S.grade && S.cls ? `${S.grade}-${S.cls}_${S.code}` : S.code;
 // 2차원 배열 → CSV 글자 (엑셀에서 한글이 안 깨지게 맨 앞에 BOM 추가)
 function toCsv(rows){ return "﻿" + rows.map(r => r.map(v => '"' + String(v ?? "").replace(/"/g, '""') + '"').join(",")).join("\r\n"); }
 // 파일을 학생 기기에 저장 (서버로 보내지 않음)
@@ -564,7 +601,7 @@ function renderStepper(){
 // 현재 단계 버튼이 보이도록 단계 표시줄만 가로로 스크롤 (페이지 전체는 움직이지 않게)
 function centerStepper(){ const bar = $("stepper"), a = bar.querySelector(".active"); if (a) bar.scrollLeft = a.offsetLeft - bar.clientWidth / 2 + a.clientWidth / 2; }
 function go(n){
-  if (n > 0 && !S.code) { alert("먼저 내 번호를 적고 '시작하기'를 눌러 주세요."); n = 0; }  // 번호 없이 진행 금지
+  if (n > 0 && !S.code) { alert("먼저 학년·반·번호를 적고 '시작하기'를 눌러 주세요."); n = 0; }  // 번호 없이 진행 금지
   stopStream();   // 단계를 옮기면 카메라는 끈다
   current = n;
   document.querySelectorAll(".step").forEach(s => s.classList.toggle("active", s.dataset.step === String(n)));
@@ -585,19 +622,33 @@ $("nextBtn").onclick = () => go(Math.min(7, current + 1));
    - 1 → "01"처럼 두 자리로 맞춰 파일 이름(상의01(1).jpg)에 쓴다
    ========================================================= */
 const toCode = v => { const n = parseInt(v, 10); return n >= 1 && n <= MAX_NUMBER ? String(n).padStart(2, "0") : ""; };
-$("codeInput").addEventListener("input", e => {
-  e.target.value = e.target.value.replace(/[^0-9]/g, "");   // 숫자가 아닌 글자(한글 이름 등)는 바로 지움
-  const c = toCode(e.target.value);
-  $("startBtn").disabled = !c;
-  $("startBtn").textContent = c ? `${c}번으로 시작하기 →` : "번호를 적어 주세요";
-  $("codePreview").textContent = c ? `내 사진 파일 이름 예: 상의${c}(1).jpg` : (e.target.value ? `1부터 ${MAX_NUMBER}까지의 번호를 적어 주세요.` : "숫자만 적을 수 있어요.");
+const toNum = (v, max) => { const n = parseInt(v, 10); return n >= 1 && n <= max ? String(n) : ""; };
+// 반 링크로 들어왔으면 학년·반을 미리 채우고 고정, 비밀번호 칸을 보여 준다
+if (CLASS.g && CLASS.c) {
+  $("gradeInput").value = CLASS.g; $("clsInput").value = CLASS.c;
+  $("gradeInput").readOnly = $("clsInput").readOnly = true;
+  $("classBanner").textContent = `${CLASS.g}학년 ${CLASS.c}반 탐정 교실이에요.`;
+  $("classBanner").classList.remove("hidden");
+}
+if (CLASS.k) $("pwRow").classList.remove("hidden");
+function readId(){ return { g:toNum($("gradeInput").value, 6), c:toNum($("clsInput").value, 20), n:toCode($("codeInput").value) }; }
+function updateStart(){
+  const id = readId(), ok = id.g && id.c && id.n && (!CLASS.k || $("pwInput").value.length === 4);
+  $("startBtn").disabled = !ok;
+  $("startBtn").textContent = id.g && id.c && id.n ? `${id.g}학년 ${id.c}반 ${id.n}번으로 시작하기 →` : "학년, 반, 번호를 적어 주세요";
+  $("codePreview").textContent = id.n ? `내 사진 파일 이름 예: 상의${id.n}(1).jpg` : "숫자만 적을 수 있어요.";
+}
+["gradeInput","clsInput","codeInput","pwInput"].forEach(id => {
+  $(id).addEventListener("input", e => { e.target.value = e.target.value.replace(/[^0-9]/g, ""); updateStart(); });   // 숫자가 아닌 글자(이름 등)는 바로 지움
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter" && !$("startBtn").disabled) $("startBtn").click(); });
 });
-$("codeInput").addEventListener("keydown", e => { if (e.key === "Enter" && !$("startBtn").disabled) $("startBtn").click(); });
 $("startBtn").onclick = () => {
-  const c = toCode($("codeInput").value); if (!c) return;
-  if (S.code && S.code !== c && !confirm(`번호를 ${S.code}번에서 ${c}번으로 바꿀까요? 이미 찍은 사진의 파일 이름은 그대로예요.`)) return;
-  S.code = c;
-  $("whoLine").textContent = `탐정 번호 ${S.code}번`;
+  const id = readId(); if (!id.g || !id.c || !id.n) return;
+  // 반 열쇠가 있으면 비밀번호를 확인해서 다른 친구 번호로 들어가지 못하게 한다
+  if (CLASS.k && $("pwInput").value !== passCode(CLASS.k, id.g, id.c, id.n)) { alert("비밀번호가 맞지 않아요. 번호와 비밀번호를 다시 확인해 주세요."); $("pwInput").value = ""; updateStart(); return; }
+  if (S.code && (S.code !== id.n || S.grade !== id.g || S.cls !== id.c) && !confirm("다른 번호로 바꿀까요? 이미 찍은 사진의 파일 이름은 그대로예요.")) return;
+  S.grade = id.g; S.cls = id.c; S.code = id.n;
+  $("whoLine").textContent = `${S.grade}학년 ${S.cls}반 ${S.code}번 탐정`;
   go(1);
 };
 
@@ -651,7 +702,7 @@ function bindSurvey(phase){
     $(phase + "Done").scrollIntoView({ behavior:"smooth", block:"center" });
   };
   $(phase + "Edit").onclick = () => { st.submitted = false; renderSurvey(phase); renderStepper(); };
-  $(phase + "Csv").onclick = () => { saveCsv(surveyCsv(phase), `${phase === "pre" ? "사전" : "사후"}학습지_${S.code}.csv`); unsaved[phase] = false; };
+  $(phase + "Csv").onclick = () => { saveCsv(surveyCsv(phase), `${phase === "pre" ? "사전" : "사후"}학습지_${tag()}.csv`); unsaved[phase] = false; };
   $(phase + "SubmitLink").href = SURVEY_SUBMIT_URL;
 }
 // 영역별 평균(0~5)과 문제 해결 점수(0~5) 계산
@@ -664,7 +715,7 @@ function scores(a, phase){
 // 학습지 한 명분 → CSV 한 줄 (열 이름이 사전·사후 같아서 교사용 도구에서 짝지을 수 있음)
 function surveyCsv(phase){
   const st = S[phase], a = st.answers;
-  const head = ["학생코드","시점","제출시각"], row = [S.code, phase === "pre" ? "사전" : "사후", st.time];
+  const head = ["학년","반","학생코드","시점","제출시각"], row = [S.grade || "", S.cls || "", S.code, phase === "pre" ? "사전" : "사후", st.time];
   surveyItems(phase).forEach(q => {
     if (q.type === "likert") { head.push(`${q.id}_${q.key}`); row.push(a[q.id]); }
     else if (q.type === "mc") {
@@ -867,19 +918,19 @@ function renderTrials(){
     : '<p class="hint">AI가 틀린 사진이 여기에 모여요.</p>';
 }
 function trialsCsv(list){
-  const h = ["기록번호","시각","학생코드","파일이름","내예측(AI가 뭐라고 할지)","AI판단","AI최고확률","실제종류","AI정오","내예측정오","전체확률"];
-  return toCsv([h, ...list.map(t => [t.id, t.time, S.code, t.file, t.guess, t.aiLabel, pct(t.conf), t.actual, t.aiCorrect ? "정답" : "오류", t.guessCorrect ? "맞힘" : "못 맞힘", t.preds.map(p => p.label + ":" + pct(p.probability)).join("; ")])]);
+  const h = ["기록번호","시각","학년","반","학생코드","파일이름","내예측(AI가 뭐라고 할지)","AI판단","AI최고확률","실제종류","AI정오","내예측정오","전체확률"];
+  return toCsv([h, ...list.map(t => [t.id, t.time, S.grade || "", S.cls || "", S.code, t.file, t.guess, t.aiLabel, pct(t.conf), t.actual, t.aiCorrect ? "정답" : "오류", t.guessCorrect ? "맞힘" : "못 맞힘", t.preds.map(p => p.label + ":" + pct(p.probability)).join("; ")])]);
 }
 // 틀린 사진만 ZIP 하나로 묶기 (파일 이름에 학생 번호가 들어가 친구 것과 겹치지 않음)
 $("s3Zip").onclick = async () => {
   const err = errors(); if (!err.length) return alert("아직 AI가 틀린 사진이 없어요.");
   const z = new JSZip();
   // 학생이 고른 실제 옷 종류별 폴더로 나눈다 → 폴더째 티처블 머신 클래스에 올릴 수 있다
-  err.forEach(t => z.file(`틀린사진_${S.code}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
-  z.file(`틀린사진_${S.code}/기록_${S.code}.csv`, trialsCsv(err));
-  saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${S.code}.zip`);
+  err.forEach(t => z.file(`틀린사진_${tag()}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
+  z.file(`틀린사진_${tag()}/기록_${tag()}.csv`, trialsCsv(err));
+  saveBlob(await z.generateAsync({ type:"blob" }), `틀린사진_${tag()}.zip`);
 };
-$("s3Csv").onclick = () => { if (!S.trials.length) return alert("저장된 기록이 없어요."); saveCsv(trialsCsv(S.trials), `실험기록_${S.code}.csv`); unsaved.trials = false; };
+$("s3Csv").onclick = () => { if (!S.trials.length) return alert("저장된 기록이 없어요."); saveCsv(trialsCsv(S.trials), `실험기록_${tag()}.csv`); unsaved.trials = false; };
 
 /* =========================================================
    10. 4단계: 디버깅 (틀린 사진마다 원인·다시 찍을 사진·고치는 방법)
@@ -923,16 +974,16 @@ function updateDebugProgress(){
   renderStepper();
 }
 function debugCsv(){
-  const h = ["기록번호","학생코드","파일이름","실제종류","AI판단","AI최고확률","오류원인(선택)","왜틀렸을까(서술)","어떤사진을찍을까","티처블머신수정(선택)","수정방법(서술)"];
-  return toCsv([h, ...errors().map(t => [t.id, S.code, t.file, t.actual, t.aiLabel, pct(t.conf), t.debug.causes.join("; "), t.debug.why, t.debug.howPhoto, t.debug.fixes.join("; "), t.debug.fixText])]);
+  const h = ["기록번호","학년","반","학생코드","파일이름","실제종류","AI판단","AI최고확률","오류원인(선택)","왜틀렸을까(서술)","어떤사진을찍을까","티처블머신수정(선택)","수정방법(서술)"];
+  return toCsv([h, ...errors().map(t => [t.id, S.grade || "", S.cls || "", S.code, t.file, t.actual, t.aiLabel, pct(t.conf), t.debug.causes.join("; "), t.debug.why, t.debug.howPhoto, t.debug.fixes.join("; "), t.debug.fixText])]);
 }
-$("s4Csv").onclick = () => { if (!errors().length) return alert("디버깅할 사진이 없어요."); saveCsv(debugCsv(), `디버깅기록_${S.code}.csv`); unsaved.debug = false; };
+$("s4Csv").onclick = () => { if (!errors().length) return alert("디버깅할 사진이 없어요."); saveCsv(debugCsv(), `디버깅기록_${tag()}.csv`); unsaved.debug = false; };
 $("s4Zip").onclick = async () => {
   if (!errors().length) return alert("디버깅할 사진이 없어요.");
   const z = new JSZip();
-  errors().forEach(t => z.file(`디버깅_${S.code}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
-  z.file(`디버깅_${S.code}/디버깅기록_${S.code}.csv`, debugCsv());
-  saveBlob(await z.generateAsync({ type:"blob" }), `디버깅_${S.code}.zip`); unsaved.debug = false;
+  errors().forEach(t => z.file(`디버깅_${tag()}/${t.actual}/${t.file}`, b64(t.image), { base64:true }));
+  z.file(`디버깅_${tag()}/디버깅기록_${tag()}.csv`, debugCsv());
+  saveBlob(await z.generateAsync({ type:"blob" }), `디버깅_${tag()}.zip`); unsaved.debug = false;
 };
 
 /* =========================================================
@@ -973,10 +1024,10 @@ $("s5Gallery").addEventListener("click", e => { const b = e.target.closest("[dat
 // 옷 종류별 폴더로 나눠 ZIP (티처블 머신 클래스에 바로 올릴 수 있게)
 $("s5Zip").onclick = async () => {
   if (!S.newPhotos.length) return alert("아직 추가한 사진이 없어요.");
-  const z = new JSZip(), rows = [["파일이름","학생코드","옷종류","바꾼점","설명"]];
-  S.newPhotos.forEach(p => { z.file(`새사진_${S.code}/${p.label}/${p.file}`, b64(p.image), { base64:true }); rows.push([p.file, S.code, p.label, p.strats.join("; "), p.memo]); });
-  z.file(`새사진_${S.code}/새사진기록_${S.code}.csv`, toCsv(rows));
-  saveBlob(await z.generateAsync({ type:"blob" }), `새사진_${S.code}.zip`); unsaved.photos = false;
+  const z = new JSZip(), rows = [["파일이름","학년","반","학생코드","옷종류","바꾼점","설명"]];
+  S.newPhotos.forEach(p => { z.file(`새사진_${tag()}/${p.label}/${p.file}`, b64(p.image), { base64:true }); rows.push([p.file, S.grade || "", S.cls || "", S.code, p.label, p.strats.join("; "), p.memo]); });
+  z.file(`새사진_${tag()}/새사진기록_${tag()}.csv`, toCsv(rows));
+  saveBlob(await z.generateAsync({ type:"blob" }), `새사진_${tag()}.zip`); unsaved.photos = false;
 };
 
 /* =========================================================
@@ -1049,10 +1100,10 @@ $("v2List").addEventListener("click", e => { const b = e.target.closest("[data-a
   const it = V2.find(x => x.id === +b.closest("[data-v2]").dataset.v2); it.actual = b.dataset.act; unsaved.v2 = true; renderV2(); });
 $("v2Csv").onclick = () => {
   if (!V2.length) return alert("아직 검사한 사진이 없어요.");
-  const rows = [["파일이름","학생코드","실제종류","v1판단","v1확률","v2판단","v2확률","결과"],
-    ...V2.map(i => [i.name, S.code, i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", verdict(i)]),
+  const rows = [["파일이름","학년","반","학생코드","실제종류","v1판단","v1확률","v2판단","v2확률","결과"],
+    ...V2.map(i => [i.name, S.grade || "", S.cls || "", S.code, i.actual || "", i.v1 ? i.v1.label : "", i.v1 ? pct(i.v1.conf) : "", i.v2 ? i.v2.label : "", i.v2 ? pct(i.v2.conf) : "", verdict(i)]),
     [], ["나의 생각", $("v2Reflect").value.trim()]];
-  saveCsv(toCsv(rows), `v2확인_${S.code}.csv`); unsaved.v2 = false;
+  saveCsv(toCsv(rows), `v2확인_${tag()}.csv`); unsaved.v2 = false;
 };
 
 /* =========================================================
@@ -1061,7 +1112,7 @@ $("v2Csv").onclick = () => {
 $("thLabel").textContent = Math.round(THRESHOLD * 100) + "%";
 $("s3Tips").innerHTML = UNSURE_TIPS.map(t => `<li>${esc(t)}</li>`).join("");
 $("ytLink").href = `https://www.youtube.com/watch?v=${VIDEO_ID}`;
-["s3Padlet","s4Padlet","s5Padlet","v2Padlet"].forEach(id => $(id).href = PADLET_URL);
+["s3Padlet","s4Padlet","s5Padlet","v2Padlet"].forEach(id => $(id).href = PADLET);
 bindSurvey("pre"); bindSurvey("post"); renderSurvey("pre"); renderSurvey("post");
 renderTrials(); renderNewPhotos();
 go(0);
