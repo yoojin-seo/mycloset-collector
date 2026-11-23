@@ -60,6 +60,14 @@ tr.pick td{background:var(--y2);font-weight:700}
 .thumb img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
 .thumb div{padding:4px;word-break:break-all;line-height:1.35}.thumb b{color:var(--b)}
 .hidden{display:none!important}
+/* 정답 붙이기 창 */
+.lab{position:fixed;inset:0;background:rgba(59,42,28,.85);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}
+.lab .box{background:#fff;border-radius:12px;padding:16px;max-width:760px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px}
+.lab img{width:100%;max-height:60vh;object-fit:contain;background:#3B2A1C;border-radius:8px}
+.lab .keys{display:grid;gap:8px;align-content:start}
+.lab .keys button{text-align:left;padding:12px;font-size:15px}
+.lab kbd{display:inline-block;min-width:22px;text-align:center;border:1px solid var(--line);border-radius:4px;margin-right:8px;background:#fff}
+@media(max-width:640px){.lab .box{grid-template-columns:1fr}}
 @media(max-width:820px){.grid{grid-template-columns:1fr}.head nav{margin-left:0}}
 </style>
 </head>
@@ -72,16 +80,13 @@ tr.pick td{background:var(--y2);font-weight:700}
   <span class="sub" id="subTitle">AI 옷장 탐정 · 모델 v1</span>
   <nav><a href="occlude.html">가리기 실험기</a><a href="teacher.html">학습지 결과</a><a href="./">학생용 앱</a></nav>
 </header>
-<!-- 평가할 모델 고르기: v0 = v0 폴더(맨 처음 앱의 모델), v1 = 배포 폴더 맨 위 모델, v2 = v2 폴더 모델 -->
+<!-- 평가할 모델 고르기: v1 = 배포 폴더 맨 위 모델, v2 = 배포 폴더 안 v2 폴더 모델 -->
 <div class="modelbar">
   <b>평가할 모델</b>
-  <button data-ver="v0" class="ver">v0 (맨 처음 모델)</button>
   <button data-ver="v1" class="ver primary">v1 (처음 모델)</button>
   <button data-ver="v2" class="ver">v2 (고친 모델)</button>
   <label class="filebtn" title="학생들에게 공개하기 전에 v2를 미리 평가할 때">배포 전 미리 평가 (파일 3개)<input type="file" id="mFiles" multiple accept=".json,.bin" class="hidden"></label>
   <span class="msg" id="mStatus">v1 모델을 불러오는 중...</span>
-  <!-- 같은 사진 묶음으로 평가한 모델들의 결과를 나란히 모아 보는 표 -->
-  <div id="cmpBox" class="hidden" style="flex-basis:100%"></div>
 </div>
 
 <div class="grid">
@@ -96,7 +101,8 @@ tr.pick td{background:var(--y2);font-weight:700}
     </div>
     <div class="drop" id="drop">학생 ZIP · 사진 · 폴더를 여기로 끌어 놓아도 돼요</div>
     <p class="small" id="pStatus" style="margin:10px 0 2px">선택한 사진 0장 · 판정 완료 0장</p>
-    <p class="small" style="margin:0">파일 이름 규칙: <b>클래스 (번호) 학생번호.jpg</b> (예: 상의 (1) 01.jpg)<br>또는 상의_01.jpg, 상의/ 폴더 안 사진도 가능</p>
+    <p class="small" style="margin:0">정답은 파일 이름 앞부분(상의_01.jpg, 상의01(1).jpg)이나 폴더 이름(상의/)에서 읽어요. 이름에 옷 종류가 없는 사진(KakaoTalk_…)은 <b>'정답 붙이기'</b>로 한 장씩 고를 수 있어요.<br><b>조건별 폴더</b>(구겨진 옷/, 가까이서 찍은 옷/, 어두운 옷/)째 넣으면 ②에 조건별 결과도 나와요. 폴더 선택은 컴퓨터의 크롬·엣지에서 돼요(태블릿은 안 됨).</p>
+    <div class="row" style="margin-top:6px"><button id="labBtn" class="hidden"></button></div>
     <div class="progress"><i id="bar"></i></div>
     <p style="margin:12px 0 0">전체 정확도 <span class="big" id="kAcc">-</span> <span class="small" id="kAccSub"></span></p>
     <p class="small" style="margin:8px 0 0">그 모델을 학습시킬 때 쓴 사진은 넣지 마세요.</p>
@@ -106,6 +112,7 @@ tr.pick td{background:var(--y2);font-weight:700}
   <section class="panel">
     <h2><span class="no">2</span>클래스별 정분류율</h2>
     <div id="perClass"><p class="hint">사진을 넣으면 클래스마다 몇 %를 맞혔는지 보여 줘요.<br>정분류율 = 그 클래스에서 맞힌 수 ÷ 그 클래스 사진 수</p></div>
+    <div id="byCond"></div>
     <div class="row" style="margin-top:8px"><button id="csvBtn" disabled>CSV 내려받기</button></div>
     <details id="thBox">
       <summary>기준값 정하기 표 (11주차)</summary>
@@ -129,6 +136,18 @@ tr.pick td{background:var(--y2);font-weight:700}
     <p class="small" style="margin:8px 0 0">사진을 누르면 <b>가리기 실험기(히트맵)</b>가 새 탭에서 열려 AI가 사진의 어디를 보고 그렇게 판정했는지 볼 수 있어요.</p>
   </section>
 </div>
+<!-- 이름에 옷 종류가 없는 사진에 정답 붙이기 (사람이 직접 고름) -->
+<div class="lab hidden" id="lab"><div class="box">
+  <div><img id="labImg" alt=""><p class="small" id="labName" style="margin:6px 0 0"></p></div>
+  <div class="keys">
+    <b id="labProg"></b>
+    <button data-l="상의"><kbd>1</kbd>상의</button>
+    <button data-l="하의"><kbd>2</kbd>하의</button>
+    <button data-l="양말"><kbd>3</kbd>양말</button>
+    <button data-l="빼기"><kbd>0</kbd>빼기 (평가에 안 씀)</button>
+    <button id="labClose">닫기 (지금까지 고른 것 저장)</button>
+  </div>
+</div></div>
 </main>
 
 <script>
@@ -155,10 +174,8 @@ function mStatus(t, err = false){ $("mStatus").textContent = t; $("mStatus").cla
 /* =========================================================
    모델 불러오기: 처음엔 같은 폴더(./), v2는 위치나 파일로 바꿔 끼움
    ========================================================= */
-// 모델 위치: v0은 v0 폴더(./v0/), v1은 배포 폴더 맨 위(./), v2는 v2 폴더(./v2/)
-const MODEL_DIR = { v0:"./v0/", v1:"./", v2:"./v2/" };
-// 모델별 결과 모음: 같은 사진 묶음으로 v0·v1·v2를 차례로 평가하면 여기에 쌓인다 (사진 묶음이 바뀌면 비움)
-const compare = {};
+// 모델 위치: v1은 배포 폴더 맨 위(./), v2는 배포 폴더 안의 v2 폴더(./v2/)
+const MODEL_DIR = { v1:"./", v2:"./v2/" };
 function onModel(name){
   modelName = name; modelKey++;   // 모델이 바뀌면 모든 사진을 새 모델로 다시 판정
   $("subTitle").textContent = `AI 옷장 탐정 · 모델 ${name}`;
@@ -171,7 +188,7 @@ async function loadVersion(ver){
   if (location.protocol === "file:") return mStatus("파일을 더블클릭해서 열면 모델을 불러올 수 없어요. 배포 주소 뒤에 /eval.html 로 열어 주세요.", true);
   const dir = MODEL_DIR[ver]; mStatus(`${ver} 불러오는 중...`);
   try { model = await tmImage.load(dir + "model.json", dir + "metadata.json"); onModel(ver); }
-  catch (e) { console.error(e); mStatus(ver === "v1" ? "v1 모델을 불러오지 못했어요. eval.html과 같은 위치에 model.json · metadata.json · weights.bin이 있는지 확인해 주세요." : `${ver} 모델이 아직 없어요. 배포 폴더 안에 ${ver} 폴더를 만들고 모델 파일 3개를 넣어 주세요.`, true); }
+  catch (e) { console.error(e); mStatus(ver === "v2" ? "v2 모델이 아직 없어요. 배포 폴더 안에 v2 폴더를 만들고 모델 파일 3개를 넣어 주세요." : "v1 모델을 불러오지 못했어요. eval.html과 같은 위치에 model.json · metadata.json · weights.bin이 있는지 확인해 주세요.", true); }
 }
 document.querySelectorAll(".ver").forEach(b => b.onclick = () => loadVersion(b.dataset.ver));
 // 배포하기 전에 v2를 미리 평가: 내려받은 파일 3개를 직접 선택
@@ -196,6 +213,11 @@ function labelFromPath(path){
   for (const c of CLASSES) if (name.includes(c)) return c;
   return null;
 }
+// 조건 읽기: 사진이 들어 있던 폴더 중 옷 종류 이름이 아닌 가장 가까운 폴더 (구겨진 옷/, 어두운 옷/ …)
+function condOf(path){
+  const dirs = path.replace(/\\/g, "/").split("/").slice(0, -1).filter(d => !CLASSES.includes(norm(d)));
+  return dirs.length ? dirs.at(-1) : "";
+}
 // 윈도우에서 다시 압축한 ZIP은 한글 이름이 EUC-KR일 수 있어서 둘 다 시도
 const decodeFileName = bytes => { const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   try { return new TextDecoder("utf-8", { fatal:true }).decode(u8); } catch (e) { return new TextDecoder("euc-kr").decode(u8); } };
@@ -203,8 +225,7 @@ const IMG = /\.(jpe?g|png|webp|bmp|gif)$/i, seen = new Set();
 function addItem(path, blob){
   path = path.normalize("NFC");   // 맥에서 압축한 한글 이름(자모 분리)을 정상 글자로
   if (seen.has(path)) return; seen.add(path);
-  Object.keys(compare).forEach(k => delete compare[k]);   // 사진 묶음이 바뀌면 모델 비교표를 새로 시작
-  items.push({ path, name:path.split("/").pop(), actual:labelFromPath(path), blob, url:URL.createObjectURL(blob), probs:null, key:0 });
+  items.push({ path, name:path.split("/").pop(), actual:labelFromPath(path), cond:condOf(path), skip:false, blob, url:URL.createObjectURL(blob), probs:null, key:0 });
 }
 async function addFiles(list){
   for (const f of list) {
@@ -221,7 +242,7 @@ async function addFiles(list){
 }
 $("pFiles").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("pFolder").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
-$("pClear").onclick = () => { items.forEach(i => URL.revokeObjectURL(i.url)); items = []; seen.clear(); filter = null; Object.keys(compare).forEach(k => delete compare[k]); $("bar").style.width = "0"; render(); };
+$("pClear").onclick = () => { items.forEach(i => URL.revokeObjectURL(i.url)); items = []; seen.clear(); filter = null; $("bar").style.width = "0"; render(); };
 $("drop").ondragover = e => { e.preventDefault(); $("drop").classList.add("over"); };
 $("drop").ondragleave = () => $("drop").classList.remove("over");
 $("drop").ondrop = async e => {
@@ -283,16 +304,45 @@ function calc(){
   const per = CLASSES.map(a => ({ cls:a, n:cols.reduce((s, c) => s + M[a][c], 0), ok:M[a][a] }));
   return { list, cols, M, per, n:list.length, ok:per.reduce((s, p) => s + p.ok, 0) };
 }
+/* ② 아래 조건별 결과: 조건 폴더가 둘 이상일 때만 (보고서 5-3 표) */
+function renderConds(r){
+  const conds = [...new Set(r.list.map(i => i.cond))];
+  if (conds.length < 2) { $("byCond").innerHTML = ""; return; }
+  const rows = conds.map(c => { const l = r.list.filter(i => i.cond === c), ok = l.filter(i => predOf(i) === i.actual).length;
+    const wrong = {}; l.filter(i => predOf(i) !== i.actual).forEach(i => { const k = `${i.actual}→${predOf(i)}`; wrong[k] = (wrong[k] || 0) + 1; });
+    const top = Object.entries(wrong).sort((a, b) => b[1] - a[1])[0];
+    return { c, n:l.length, ok, top:top ? `${top[0]} ${top[1]}장` : "-" }; }).sort((a, b) => a.ok / a.n - b.ok / b.n);
+  $("byCond").innerHTML = `<h3 style="font-size:14px;margin:14px 0 4px">조건별 결과</h3><table><tr><th>조건 (폴더)</th><th>정답 수 / 전체</th><th>정확도</th><th>가장 많이 틀린 쪽</th></tr>${rows.map(x => `<tr><td>${esc(x.c || "(폴더 없음)")}</td><td>${x.ok} / ${x.n}</td><td>${pct(x.ok, x.n)}</td><td>${esc(x.top)}</td></tr>`).join("")}</table><p class="small" style="margin:4px 0 0">정확도가 낮은 조건부터 위에 놓았어요. 조건마다 사진 수가 적으면 한 장 차이가 크게 보여요.</p>`;
+}
+/* 정답 붙이기: 이름에 옷 종류가 없는 사진을 사람이 한 장씩 보고 고른다 (AI가 붙인 정답으로 AI를 채점하지 않기 위해) */
+let labList = [], labCur = 0;
+function openLab(){ labList = items.filter(i => !i.actual && !i.skip); labCur = 0; if (!labList.length) return; $("lab").classList.remove("hidden"); showLab(); }
+function showLab(){
+  const it = labList.at(labCur); if (!it) return closeLab();
+  $("labImg").src = it.url; $("labName").textContent = `${it.cond ? "[" + it.cond + "] " : ""}${it.name}`;
+  $("labProg").textContent = `${labCur + 1} / ${labList.length}`;
+}
+function setLab(l){ const it = labList.at(labCur); if (!it) return; if (l === "빼기") it.skip = true; else it.actual = l; labCur++; labCur < labList.length ? showLab() : closeLab(); }
+function closeLab(){ $("lab").classList.add("hidden"); predictAll(); }
+$("labBtn").onclick = openLab;
+$("labClose").onclick = closeLab;
+document.querySelectorAll("#lab .keys button[data-l]").forEach(b => b.onclick = () => setLab(b.dataset.l));
+document.addEventListener("keydown", e => {
+  if ($("lab").classList.contains("hidden")) return;
+  const map = { "1":"상의", "2":"하의", "3":"양말", "0":"빼기" };
+  if (map[e.key]) { e.preventDefault(); setLab(map[e.key]); }
+  if (e.key === "Escape") closeLab();
+});
+
 function render(){
-  const r = calc(), labeled = items.filter(i => i.actual).length, none = items.length - labeled;
+  const r = calc(), labeled = items.filter(i => i.actual).length, skipped = items.filter(i => i.skip).length, none = items.length - labeled - skipped;
+  $("labBtn").classList.toggle("hidden", !none); $("labBtn").textContent = `정답 붙이기 (${none}장)`; $("labBtn").className = none ? "primary" : "hidden";
   // ① 사진 수와 전체 정확도
   $("pStatus").innerHTML = `선택한 사진 ${items.length}장 · 판정 완료 ${r.n}장` + (!model ? " · 모델을 먼저 불러와 주세요" : "") +
-    (none ? `<br>정답(클래스)을 알 수 없는 사진 ${none}장은 제외: ${items.filter(i => !i.actual).slice(0, 5).map(i => esc(i.name)).join(", ")}${none > 5 ? " …" : ""}` : "");
+    (none ? `<br>정답(옷 종류)을 아직 모르는 사진 ${none}장은 판정하지 않았어요. 아래 '정답 붙이기'를 눌러 주세요.` : "") + (skipped ? ` · 뺀 사진 ${skipped}장` : "");
   $("kAcc").textContent = pct(r.ok, r.n); $("kAccSub").textContent = r.n ? `(${r.ok}/${r.n})` : "";
-  // 정답을 아는 사진을 이 모델로 모두 판정했으면 결과를 비교표에 남긴다
-  if (r.n && r.n === labeled) compare[modelName] = { n:r.n, ok:r.ok, per:r.per.map(p => ({ ...p })) };
-  renderCompare();
   $("csvBtn").disabled = !r.n;
+  renderConds(r);
   if (!r.n) { $("perClass").innerHTML = '<p class="hint">사진을 넣으면 클래스마다 몇 %를 맞혔는지 보여 줘요.<br>정분류율 = 그 클래스에서 맞힌 수 ÷ 그 클래스 사진 수</p>'; $("cm").innerHTML = '<p class="hint">대각선 = 맞힌 수. 대각선 밖의 칸을 누르면 그 칸의 사진만 ④에 보여요.</p>'; $("cmCheck").textContent = ""; $("thTable").innerHTML = ""; renderGallery(r); return; }
 
   // ② 클래스별 정분류율 막대 (전체 정확도보다 낮은 클래스는 갈색으로 눈에 띄게)
@@ -314,16 +364,6 @@ $("cm").addEventListener("click", e => { const td = e.target.closest("td.cell");
   filter = filter && filter.a === td.dataset.a && filter.p === td.dataset.p ? null : { a:td.dataset.a, p:td.dataset.p }; render(); });
 $("showAll").onclick = () => { filter = null; render(); };
 $("goal").oninput = () => renderThTable(judged());
-
-/* 모델 비교표: 같은 사진 묶음에서 v0 → v1 → v2 정확도가 어떻게 바뀌었는지 */
-function renderCompare(){
-  const order = ["v0", "v1", "v2", "미리보기"].filter(k => compare[k]);
-  $("cmpBox").classList.toggle("hidden", !order.length);
-  if (!order.length) return;
-  $("cmpBox").innerHTML = `<table style="background:#fff"><tr><th>같은 사진으로 비교</th><th>전체 정확도</th>${CLASSES.map(c => `<th>${c} 정분류율</th>`).join("")}</tr>${order.map(k => { const s = compare[k];
-    return `<tr><td><b>${esc(k)}</b></td><td>${pct(s.ok, s.n)} (${s.ok}/${s.n})</td>${s.per.map(p => `<td>${pct(p.ok, p.n)} (${p.ok}/${p.n})</td>`).join("")}</tr>`; }).join("")}</table>
-    <span class="small">다른 모델 버튼을 누르면 같은 사진으로 다시 판정해 이 표에 한 줄씩 쌓여요. 사진을 바꾸면 표가 비워져요.</span>`;
-}
 
 /* ② 아래 '기준값 정하기 표': 기준값을 0.50~0.95로 바꿔 가며 답한 사진과 정확도 계산 (11주차 표와 같은 열) */
 function renderThTable(list){
@@ -355,11 +395,12 @@ function renderGallery(r){
    ========================================================= */
 $("csvBtn").onclick = () => {
   const r = calc(), labels = [...new Set(r.list.flatMap(i => i.probs.map(p => p.label)))];
-  const rows = [["파일이름","경로","실제","예측","최고확률","정오", ...labels.map(l => l + "_확률")],
-    ...r.list.map(i => [i.name, i.path, i.actual, predOf(i), i.probs[0].probability.toFixed(3), predOf(i) === i.actual ? "정답" : "오답",
+  const rows = [["파일이름","경로","조건","실제","예측","최고확률","정오", ...labels.map(l => l + "_확률")],
+    ...r.list.map(i => [i.name, i.path, i.cond, i.actual, predOf(i), i.probs[0].probability.toFixed(3), predOf(i) === i.actual ? "정답" : "오답",
       ...labels.map(l => { const p = i.probs.find(x => x.label === l); return p ? p.probability.toFixed(3) : ""; })]),
     [], ["모델", modelName], ["전체 정확도", pct(r.ok, r.n), `${r.ok}/${r.n}`],
-    ...r.per.map(p => [p.cls + " 정분류율", pct(p.ok, p.n), `${p.ok}/${p.n}`])];
+    ...r.per.map(p => [p.cls + " 정분류율", pct(p.ok, p.n), `${p.ok}/${p.n}`]),
+    ...[...new Set(r.list.map(i => i.cond))].filter(c => c).map(c => { const l = r.list.filter(i => i.cond === c), ok = l.filter(i => predOf(i) === i.actual).length; return ["조건: " + c, pct(ok, l.length), `${ok}/${l.length}`]; })];
   saveBlob(new Blob([toCsv(rows)], { type:"text/csv;charset=utf-8" }), `result_${modelName}.csv`);
 };
 $("zipBtn").onclick = async () => {
@@ -375,7 +416,7 @@ $("gallery").addEventListener("click", e => {
   const t = e.target.closest("[data-item]"); if (!t) return;
   const it = items[+t.dataset.item], r = new FileReader();
   r.onload = () => {
-    const w = window.open(`occlude.html?model=${["v0", "v2"].includes(modelName) ? modelName : "v1"}`, "_blank");   // 지금 평가 중인 모델로 히트맵
+    const w = window.open(`occlude.html?model=${modelName === "v2" ? "v2" : "v1"}`, "_blank");
     const msg = { type:"occlude-image", dataUrl:r.result, name:it.name, actual:it.actual };
     const onReady = ev => { if (ev.source === w && ev.data && ev.data.type === "occlude-ready") { w.postMessage(msg, location.origin); window.removeEventListener("message", onReady); } };
     window.addEventListener("message", onReady);

@@ -111,7 +111,7 @@ ul{margin:6px 0 0;padding-left:18px}
 <section class="sec" id="sec-csv">
   <div class="card">
     <h2>② 학습지·활동 기록 CSV 모으기</h2>
-    <p class="hint">학생들이 패들렛에 올린 CSV를 한꺼번에 넣으세요. 사전·사후 학습지, 실험기록, 디버깅기록, 새사진기록, v2확인, 나의성장 CSV를 섞어 넣어도 종류별로 나눠 줘요. <b>빠진 파일이 있어도 있는 것만으로 합쳐요.</b></p>
+    <p class="hint">학생들이 패들렛에 올린 CSV를 한꺼번에 넣으세요. 사전·사후 학습지, 실험기록, 디버깅기록, 새사진기록, v2확인 CSV를 섞어 넣어도 종류별로 나눠 줘요. <b>빠진 파일이 있어도 있는 것만으로 합쳐요.</b></p>
     <div class="row" style="margin-top:8px">
       <span class="small">학년·반 정보가 없는 예전 파일은 이 반으로 볼게요:</span>
       <label><input type="number" id="dG" min="1" max="6" style="width:56px"> 학년</label>
@@ -150,7 +150,6 @@ ul{margin:6px 0 0;padding-left:18px}
     <p class="small">학생이 고른 옷 종류가 틀렸을 수 있어요. 아래 사진 밑의 칸에서 종류를 고치거나 '빼기'를 고르세요.</p>
     <div id="pThumbs" class="thumbs"></div>
     <div class="actions"><button class="primary" id="pZip" disabled>v2 학습용 ZIP 만들기</button><button id="pClear">비우기</button></div>
-    <div class="warn">이름에 <b>_인터넷</b>이 붙은 사진은 학생이 인터넷에서 가져온 사진이라 자동으로 '빼기'로 둡니다. 라이선스를 확인한 경우에만 종류를 골라 넣으세요.</div>
     <div class="warn">v2 학습에 넣은 학생 사진(같은 옷, 같은 장면)은 고정 개발용·최종 테스트용에 넣지 마세요. 넣으면 v2 점수가 실제보다 좋게 나와요.</div>
   </div>
 </section>
@@ -321,7 +320,7 @@ function unionRows(tables){
 dropZone("drop", "files", list => handle(list.map(x => x.f)));
 async function handle(files){
   files = files.filter(f => /\.csv$/i.test(f.name)); if (!files.length) return alert("CSV 파일을 넣어 주세요.");
-  const groups = { 학습지:[], 실험기록:[], 디버깅기록:[], 새사진기록:[], v2확인:[], 나의성장:[] };
+  const groups = { 학습지:[], 실험기록:[], 디버깅기록:[], 새사진기록:[], v2확인:[] };
   for (const f of files) {
     const rows = parseCsv(await f.text()); if (rows.length < 2) continue;
     const t = { head: rows[0], rows: rows.slice(1).filter(r => r.length > 1) };   // ZIP 속 CSV 끝의 '나의 생각' 줄 같은 짧은 줄은 제외
@@ -330,7 +329,6 @@ async function handle(files){
     else if (t.head.some(h => h.startsWith("왜틀렸을까"))) groups.디버깅기록.push(t);
     else if (t.head.includes("바꾼점")) groups.새사진기록.push(t);
     else if (t.head.includes("v2판단")) groups.v2확인.push(t);
-    else if (t.head.includes("가장자란점")) groups.나의성장.push(t);   // 학생 앱 8단계 기록
   }
   const acts = $("actions"); acts.innerHTML = "";
   let summary = `CSV ${files.length}개를 읽었어요.`;
@@ -394,8 +392,7 @@ dropZone("pDrop", "pFiles", async list => {
     const h = await hashOf(blob);
     if (pSeen.has(h)) { dup++; continue; }   // 틀린사진 ZIP과 디버깅 ZIP에 함께 든 같은 사진
     pSeen.add(h);
-    // 학생이 '인터넷에서 가져온 사진'으로 표시한 사진(_인터넷)은 저작권 때문에 처음부터 '빼기'
-    pItems.push({ path, blob, url:URL.createObjectURL(blob), label:/_인터넷/.test(path) ? "빼기" : (labelFromPath(path) || ""), hash:h });
+    pItems.push({ path, blob, url:URL.createObjectURL(blob), label:labelFromPath(path) || "", hash:h });
   }
   renderP(dup);
 });
@@ -450,6 +447,11 @@ $("rNext").onclick = () => { rCur = Math.min(rItems.length - 1, rCur + 1); rende
 $("rThumbs").addEventListener("click", e => { const t = e.target.closest("[data-k]"); if (t) { rCur = +t.dataset.k; renderR(); } });
 document.querySelectorAll("input[name=split]").forEach(r => r.onchange = renderR);
 $("rDevN").oninput = renderR;
+// 조건 폴더(구겨진 옷/, 어두운 옷/ …): 옷 종류 이름이 아닌 가장 가까운 폴더. 맨 위 폴더 하나뿐이면 조건 없음
+function condOf(path){
+  const dirs = path.split("/").slice(0, -1).filter(d => !CLASSES.includes(norm(d)));
+  return dirs.length > 1 ? dirs.at(-1) : "";
+}
 // 묶음 나누기: 클래스마다 파일 이름 순서대로 번호를 매기고 개발용/테스트용을 정한다
 function plan(){
   const mode = document.querySelector("input[name=split]:checked").value, devN = Math.max(0, +$("rDevN").value || 0), out = [];
@@ -477,8 +479,9 @@ function renderR(){
   $("rZip").disabled = !p.length;
 }
 $("rZip").onclick = async () => {
-  const p = plan(), z = new JSZip(), rows = [["묶음","새 이름","옷 종류","원래 이름"]];
-  p.forEach(o => { z.file(`평가사진/${o.set}/${o.name}`, o.i.blob); rows.push([o.set, o.name, o.c, o.i.path]); });
+  const p = plan(), z = new JSZip(), rows = [["묶음","조건","새 이름","옷 종류","원래 이름"]];
+  // 조건 폴더가 있으면 그대로 살린다 → eval.html에 폴더째 넣으면 조건별 결과가 나옴
+  p.forEach(o => { const c = condOf(o.i.path); z.file(`평가사진/${o.set}/${c ? c + "/" : ""}${o.name}`, o.i.blob); rows.push([o.set, c, o.name, o.c, o.i.path]); });
   z.file("평가사진/이름바꾸기_기록.csv", toCsv(rows));
   saveBlob(await z.generateAsync({ type:"blob" }), "평가사진_이름바꾼것.zip");
 };
